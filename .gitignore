@@ -1,0 +1,24 @@
+# ASP.NET Core files to ignore
+bin/
+obj/
+.vs/
+.vscode/
+.DS_Store
+*.user
+*.suo
+*.bak
+*.ncrunch*
+*.localhistory
+*.idea/
+*.tmd
+*.log
+*.sql
+*.sqlite
+
+# Rider
+.idea/
+.sln.iml
+
+# Logs
+*.log
+
