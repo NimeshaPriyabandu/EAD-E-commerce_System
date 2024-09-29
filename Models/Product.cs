@@ -7,17 +7,16 @@ namespace E_commerce_system.Models
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; } = ObjectId.GenerateNewId().ToString(); // Default value
+        public string Id { get; set; } = ObjectId.GenerateNewId().ToString(); // Unique Product ID
 
-        public string Name { get; set; } = string.Empty;        // Default value
-        public string Description { get; set; } = string.Empty; // Default value
-        public decimal Price { get; set; }
-        public int Stock { get; set; }
-        public bool IsActive { get; set; } = true;
-
-        // OR (Choose one of the two options)
-        // public string? Id { get; set; } // Option 2: Make properties nullable
-        // public string? Name { get; set; } // Option 2: Make properties nullable
-        // public string? Description { get; set; } // Option 2: Make properties nullable
+        public string Name { get; set; } = string.Empty;        // Product Name
+        public string Description { get; set; } = string.Empty; // Product Description
+        public decimal Price { get; set; }                      // Product Price
+        public int Stock { get; set; }                          // Stock Quantity
+        public bool IsActive { get; set; } = true;              // Activation Status
+        public string ImageUrl { get; set; } = string.Empty;    // URL for the product image
+        public string Category { get; set; } = string.Empty;    // Product Category
+        public string VendorId { get; set; } = string.Empty;    // Vendor ID who owns the product
+        public bool IsPurchased { get; set; } = false;          // Indicates if the product is purchased
     }
 }

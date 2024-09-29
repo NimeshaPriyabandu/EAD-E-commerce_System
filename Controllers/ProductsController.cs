@@ -11,7 +11,6 @@ namespace E_commerce_system.Controllers
     {
         private readonly ProductService _productService;
 
-        // Constructor Injection of the ProductService
         public ProductsController(ProductService productService)
         {
             _productService = productService;
@@ -40,6 +39,12 @@ namespace E_commerce_system.Controllers
         [HttpPost]
         public ActionResult<Product> Create(Product product)
         {
+            if (string.IsNullOrEmpty(product.ImageUrl))
+            {
+                // Optional: Set a default image URL if none is provided
+                product.ImageUrl = "https://example.com/default-product-image.jpg";
+            }
+
             _productService.Create(product);
             return CreatedAtRoute("GetProduct", new { id = product.Id }, product); // Return 201 Created with the product URI
         }
@@ -72,6 +77,34 @@ namespace E_commerce_system.Controllers
 
             _productService.Remove(id);
             return NoContent(); // Return 204 No Content on successful deletion
+        }
+
+        // New Endpoint: Activate Product
+        [HttpPut("{id:length(24)}/activate")]
+        public IActionResult ActivateProduct(string id)
+        {
+            var product = _productService.Get(id);
+            if (product == null)
+            {
+                return NotFound();
+            }
+
+            _productService.ActivateProduct(id);
+            return NoContent();
+        }
+
+        // New Endpoint: Deactivate Product
+        [HttpPut("{id:length(24)}/deactivate")]
+        public IActionResult DeactivateProduct(string id)
+        {
+            var product = _productService.Get(id);
+            if (product == null)
+            {
+                return NotFound();
+            }
+
+            _productService.DeactivateProduct(id);
+            return NoContent();
         }
     }
 }
