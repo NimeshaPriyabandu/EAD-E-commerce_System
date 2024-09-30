@@ -2,6 +2,8 @@ using E_commerce_system.Models;
 using E_commerce_system.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Authorization;
+
 
 namespace E_commerce_system.Controllers
 {
@@ -18,6 +20,7 @@ namespace E_commerce_system.Controllers
 
         // GET: api/products
         [HttpGet]
+        [Authorize(Roles = "Administrator")]
         public ActionResult<List<Product>> GetAll()
         {
             return _productService.Get(); // Return 200 OK with the list of products
