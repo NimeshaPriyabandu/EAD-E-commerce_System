@@ -10,6 +10,18 @@ using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add CORS configuration
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontendApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // Your React app URL
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+            //   .AllowCredentials(); // If you need to allow credentials like cookies or auth headers
+    });
+});
+
 
 builder.Services.Configure<MongoDBSettings>(
     builder.Configuration.GetSection("MongoDBSettings"));
@@ -150,6 +162,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowFrontendApp");
 
 // Use Routing
 app.UseRouting();
