@@ -7,7 +7,6 @@ using System.Text;
 using E_commerce_system.Models;
 using E_commerce_system.Services; 
 
-
 namespace E_commerce_system.Controllers
 {
     [ApiController]
@@ -23,28 +22,124 @@ namespace E_commerce_system.Controllers
             _configuration = configuration;
         }
 
+        [HttpGet("profile")]
+        public async Task<IActionResult> GetUserProfile()
+        {
+            // Extract the user ID from the JWT token
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User ID not found in token." });
+            }
+
+            // Retrieve the user by their ID
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found." });
+            }
+
+            return Ok(user);
+        }
+
+        // New endpoint to get all users (Only for Administrators)
+        [HttpGet("users")] 
+        public async Task<IActionResult> GetAllUsers()
+        {
+            try
+            {
+                Console.WriteLine("Fetching all users...");
+
+                var users = await _userService.GetAllCustomersAsync();
+                if (users.Count == 0)
+                {
+                    Console.WriteLine("No users found.");
+                    return NotFound(new { message = "No users found." });
+                }
+
+
+                Console.WriteLine($"Found {users.Count} users.");
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching users: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while fetching users.", error = ex.Message });
+            }
+        }
+
+        // Endpoint to activate or deactivate a user account (Administrator only)
+        [HttpPut("users/{id}/activate")]
+        [Authorize(Roles = "Administrator")] // Only admins can activate/deactivate users
+        public async Task<IActionResult> ActivateDeactivateUser(string id, [FromBody] bool isActive)
+        {
+            try
+            {
+                var user = await _userService.GetUserByIdAsync(id);
+                if (user == null)
+                {
+                    return NotFound(new { message = "User not found." });
+                }
+
+                user.IsActive = isActive;
+                await _userService.UpdateUserAsync(user);
+
+                var status = isActive ? "activated" : "deactivated";
+                Console.WriteLine($"User {user.Email} has been {status}.");
+                return Ok(new { message = $"User {status} successfully." });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during account activation/deactivation: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while updating the user status.", error = ex.Message });
+            }
+        }
+
         [HttpPost("signup")]
         public async Task<IActionResult> Signup([FromBody] User user)
         {
             try
             {
-                Console.WriteLine("Signup request received"); 
+                // Check if the user already exists
                 if (await _userService.GetUserByEmailAsync(user.Email) != null)
                 {
-                    Console.WriteLine("User already exists."); 
                     return BadRequest(new { message = "User already exists." });
                 }
 
-                await _userService.CreateUserAsync(user);
-                Console.WriteLine("User created successfully."); 
-                return Ok(new { message = "User created successfully." });
+                // Hash the user's password before saving
+                user.PasswordHash = _userService.HashPassword(user.PasswordHash);
+
+                // Log the hashed password for debugging
+                Console.WriteLine($"Hashed password for {user.Email}: {user.PasswordHash}");
+
+                if (user.Role == "Vendor")
+                {
+                    var vendor = new Vendor
+                    {
+                        Email = user.Email,
+                        PasswordHash = user.PasswordHash,
+                        Role = "Vendor",
+                        IsActive = true,
+                        Ratings = new List<CustomerRating>(),
+                        AverageRating = 0.0
+                    };
+
+                    await _userService.CreateUserAsync(vendor);
+                    return Ok(new { message = "Vendor created successfully." });
+                }
+                else
+                {
+                    await _userService.CreateUserAsync(user);
+                    return Ok(new { message = "User created successfully." });
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error during signup: {ex.Message}"); 
                 return StatusCode(500, new { message = "An error occurred while creating the user.", error = ex.Message });
             }
         }
+
 
 
         [HttpPost("login")]
@@ -52,12 +147,31 @@ namespace E_commerce_system.Controllers
         {
             try
             {
+                // Retrieve user by email
                 var user = await _userService.GetUserByEmailAsync(loginRequest.Email);
-                if (user == null || !await _userService.ValidateUserCredentialsAsync(loginRequest.Email, loginRequest.Password))
+                if (user == null)
+                {
                     return Unauthorized(new { message = "Invalid credentials." });
+                }
+
+                // Log user details for debugging
+                Console.WriteLine($"User found: {user.Email}, Role: {user.Role}");
+
+                // Hash the input password and compare it with the stored hash
+                var hashOfInput = _userService.HashPassword(loginRequest.Password);
+                Console.WriteLine($"Hashed input password: {hashOfInput}");
+                Console.WriteLine($"Stored password hash: {user.PasswordHash}");
+
+                if (hashOfInput != user.PasswordHash)
+                {
+                    Console.WriteLine("Invalid password for user: " + user.Email);
+                    return Unauthorized(new { message = "Invalid credentials." });
+                }
 
                 if (!user.IsActive)
+                {
                     return Forbid("Account is not activated.");
+                }
 
                 var token = GenerateJwtToken(user);
                 return Ok(new { Token = token });
@@ -67,6 +181,8 @@ namespace E_commerce_system.Controllers
                 return StatusCode(500, new { message = "An error occurred while processing the login request.", error = ex.Message });
             }
         }
+
+
 
     private string GenerateJwtToken(User user)
     {
@@ -95,7 +211,6 @@ namespace E_commerce_system.Controllers
 
 
 }
-
 
     public class LoginRequest
     {

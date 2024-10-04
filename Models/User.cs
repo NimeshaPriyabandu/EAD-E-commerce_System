@@ -4,6 +4,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace E_commerce_system.Models
 {
+    [BsonDiscriminator("User")] // Add discriminator for User
+    [BsonKnownTypes(typeof(Vendor))] // Let MongoDB know that Vendor is a subclass of User
     public class User
     {
         [BsonId]

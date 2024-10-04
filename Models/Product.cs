@@ -16,7 +16,7 @@ namespace E_commerce_system.Models
         public bool IsActive { get; set; } = true;              // Activation Status
         public string ImageUrl { get; set; } = string.Empty;    // URL for the product image
         public string Category { get; set; } = string.Empty;    // Product Category
-        public string VendorId { get; set; } = string.Empty;    // Vendor ID who owns the product
-        public bool IsPurchased { get; set; } = false;          // Indicates if the product is purchased
+        public string VendorId { get; set; } = string.Empty;    
+        public bool IsPurchased { get; set; } = false;          
     }
 }
