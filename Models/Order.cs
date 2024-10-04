@@ -1,6 +1,7 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
+using System.Collections.Generic;
 
 namespace E_commerce_system.Models
 {
@@ -8,17 +9,22 @@ namespace E_commerce_system.Models
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; } = ObjectId.GenerateNewId().ToString(); // Unique Order ID
+        public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
 
-        public string ProductId { get; set; } = string.Empty;    // ID of the purchased product
-        public string CustomerId { get; set; } = string.Empty;   // ID of the customer who placed the order
-        public int Quantity { get; set; } = 1;                   // Quantity of the product
-        public decimal TotalPrice { get; set; } = 0;             // Total price of the order
+        public string CustomerId { get; set; } = string.Empty; // ID of the customer who placed the order
+        public List<OrderItem> Items { get; set; } = new List<OrderItem>(); // List of items in the order
+        public decimal TotalPrice { get; set; } // Total price of the order
+        public string Status { get; set; } = "Processing"; // Order status (e.g., Processing, Shipped, Delivered, Cancelled)
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow; // Order creation date
+        public DateTime? UpdatedAt { get; set; } // Last update timestamp
+    }
 
-        public string Status { get; set; } = "Processing";       // Order status: Processing, Dispatched, Delivered, Cancelled
-
-        public DateTime OrderDate { get; set; } = DateTime.UtcNow; // Date of order placement
-        public DateTime? DispatchedDate { get; set; }            // Date of order dispatch
-        public DateTime? DeliveryDate { get; set; }              // Date of order delivery
+    public class OrderItem
+    {
+        public string ProductId { get; set; } = string.Empty; // ID of the product
+        public string ProductName { get; set; } = string.Empty; // Product name for reference
+        public int Quantity { get; set; } // Quantity of the product in the order
+        public decimal UnitPrice { get; set; } // Price per unit of the product
+        public decimal TotalPrice => Quantity * UnitPrice; // Total price for this item (Quantity * UnitPrice)
     }
 }
