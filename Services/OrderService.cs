@@ -24,65 +24,77 @@ namespace E_commerce_system.Services
         public Order GetById(string id) => _orders.Find(order => order.Id == id).FirstOrDefault();
 
         // Create a new order
-        public Order Create(Order order)
+        public string Create(Order order)
         {
             order.TotalPrice = CalculateTotalPrice(order.Items);
             _orders.InsertOne(order);
-            return order;
+            return "Order created successfully.";
         }
 
         // Update an existing order
-        public void Update(string id, Order updatedOrder)
+        public string Update(string id, Order updatedOrder)
         {
             var existingOrder = GetById(id);
-            if (existingOrder == null || existingOrder.Status != "Processing")
+            if (existingOrder == null)
             {
-                throw new InvalidOperationException("Order can only be updated if it is in 'Processing' status.");
+                return "Order not found.";
+            }
+
+            if (existingOrder.Status != "Processing")
+            {
+                return "Order can only be updated if it is in 'Processing' status.";
             }
 
             updatedOrder.UpdatedAt = DateTime.UtcNow;
             updatedOrder.TotalPrice = CalculateTotalPrice(updatedOrder.Items);
             _orders.ReplaceOne(order => order.Id == id, updatedOrder);
+            return "Order updated successfully.";
         }
 
         // Cancel an order by updating the status
-        public void CancelOrder(string id)
+        public string CancelOrder(string id)
         {
             var existingOrder = GetById(id);
             if (existingOrder == null)
             {
-                throw new InvalidOperationException("Order not found.");
+                return "Order not found.";
             }
+
             if (existingOrder.Status == "Shipped" || existingOrder.Status == "Delivered")
             {
-                throw new InvalidOperationException("Cannot cancel an order that has already been shipped or delivered.");
+                return "Cannot cancel an order that has already been shipped or delivered.";
             }
 
             var update = Builders<Order>.Update.Set(o => o.Status, "Cancelled")
                                                .Set(o => o.UpdatedAt, DateTime.UtcNow);
             _orders.UpdateOne(order => order.Id == id, update);
+            return "Order cancelled successfully.";
         }
 
         // Update order status (e.g., Processing, Shipped, Delivered)
-        public void UpdateOrderStatus(string id, string newStatus)
+        public string UpdateOrderStatus(string id, string newStatus)
         {
             var order = GetById(id);
-            if (order == null) throw new InvalidOperationException("Order not found.");
+            if (order == null)
+            {
+                return "Order not found.";
+            }
 
             // Validate status transitions
             if (newStatus == "Delivered" && order.Status != "Shipped")
             {
-                throw new InvalidOperationException("Order must be 'Shipped' before it can be marked as 'Delivered'.");
+                return "Order must be 'Shipped' before it can be marked as 'Delivered'.";
             }
 
             if (newStatus == "Shipped" && order.Status != "Processing")
             {
-                throw new InvalidOperationException("Order must be 'Processing' before it can be marked as 'Shipped'.");
+                return "Order must be 'Processing' before it can be marked as 'Shipped'.";
             }
 
             var update = Builders<Order>.Update.Set(o => o.Status, newStatus)
                                                .Set(o => o.UpdatedAt, DateTime.UtcNow);
             _orders.UpdateOne(order => order.Id == id, update);
+            return $"Order status updated to '{newStatus}'.";
         }
 
         // Calculate the total price of an order based on the items
