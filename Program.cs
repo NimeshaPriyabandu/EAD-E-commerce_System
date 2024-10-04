@@ -44,6 +44,7 @@ builder.Services.AddScoped(sp =>
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<VendorService>();
 
 // ** Start of New Code for User Authentication ** //
 
@@ -68,68 +69,75 @@ builder.Services.AddAuthentication(options =>
     options.RequireHttpsMetadata = false;
     options.SaveToken = true;
 
-    // Add debug log to verify token validation
     options.Events = new JwtBearerEvents
     {
+        // Token successfully validated
         OnTokenValidated = context =>
         {
-            // Debugging token validation
             var userId = context.Principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var userRole = context.Principal.FindFirst(ClaimTypes.Role)?.Value;
 
             Console.WriteLine($"Token Validated for User ID: {userId}, Role: {userRole}");
             return Task.CompletedTask;
         },
+        
+        // Handle authentication failures, e.g., invalid token
         OnAuthenticationFailed = context =>
         {
-            // Log authentication failure
             Console.WriteLine($"Authentication Failed: {context.Exception.Message}");
-            
-            // Optional: Return custom error response for unauthenticated users
+
             if (!context.Response.HasStarted)
             {
                 context.Response.StatusCode = 401;
                 context.Response.ContentType = "application/json";
-                var result = System.Text.Json.JsonSerializer.Serialize(new { message = "Authentication failed" });
-                return context.Response.WriteAsync(result);
+                
+                // Renamed result to authFailedResult
+                var authFailedResult = System.Text.Json.JsonSerializer.Serialize(new { message = "Authentication failed. Please ensure your token is valid." });
+                return context.Response.WriteAsync(authFailedResult);
             }
 
             return Task.CompletedTask;
         },
+        
+        // Handle the scenario where no token is provided
         OnChallenge = context =>
         {
-            // This is invoked when the user is not authenticated
             if (!context.Response.HasStarted)
             {
                 context.Response.StatusCode = 401;
                 context.Response.ContentType = "application/json";
-                var result = System.Text.Json.JsonSerializer.Serialize(new { message = "You are not authorized" });
-                return context.Response.WriteAsync(result);
+                
+                // Renamed result to challengeResult
+                var challengeResult = System.Text.Json.JsonSerializer.Serialize(new { message = "Authentication required. Please provide a valid token." });
+                return context.Response.WriteAsync(challengeResult);
             }
 
             return Task.CompletedTask;
         },
+        
+        // Handle cases where a valid token is provided but the user does not have sufficient privileges
         OnForbidden = context =>
         {
-            // This is invoked when the user is authenticated but does not have the required roles
             context.Response.StatusCode = 403;
             context.Response.ContentType = "application/json";
-            var result = System.Text.Json.JsonSerializer.Serialize(new { message = "You do not have sufficient privileges" });
-            return context.Response.WriteAsync(result);
+            
+            // Renamed result to forbiddenResult
+            var forbiddenResult = System.Text.Json.JsonSerializer.Serialize(new { message = "Access denied. You do not have sufficient permissions to perform this action." });
+            return context.Response.WriteAsync(forbiddenResult);
         }
     };
 
-    // Adjust the TokenValidationParameters to skip issuer and audience validation
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key)),
-        ValidateIssuer = false, // Disable issuer validation
-        ValidateAudience = false, // Disable audience validation
+        ValidateIssuer = false, 
+        ValidateAudience = false,
         ClockSkew = TimeSpan.Zero,
-        RoleClaimType = ClaimTypes.Role // Use ClaimTypes.Role to match the role claim in the token
+        RoleClaimType = ClaimTypes.Role
     };
 });
+
 
 // Add Role-Based Authorization
 builder.Services.AddAuthorization(options =>
