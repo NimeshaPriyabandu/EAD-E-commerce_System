@@ -26,6 +26,7 @@ builder.Services.AddCors(options =>
 builder.Services.Configure<MongoDBSettings>(
     builder.Configuration.GetSection("MongoDBSettings"));
 
+// Register MongoDB client
 builder.Services.AddSingleton<IMongoClient, MongoClient>(sp =>
 {
     var settings = sp.GetRequiredService<IOptions<MongoDBSettings>>().Value;
@@ -37,10 +38,14 @@ builder.Services.AddScoped(sp =>
 {
     var client = sp.GetRequiredService<IMongoClient>();
     var settings = sp.GetRequiredService<IOptions<MongoDBSettings>>().Value;
+
+    return client.GetDatabase(settings.DatabaseName); // Resolve IMongoDatabase
+});
+
+// Register ProductService and OrderService
     return client.GetDatabase(settings.DatabaseName);
 });
 
-// Register your services with DI
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<UserService>();
