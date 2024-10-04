@@ -9,13 +9,22 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<MongoDBSettings>(
     builder.Configuration.GetSection("MongoDBSettings"));
 
-// Register MongoDB client and ProductService with DI
+// Register MongoDB client
 builder.Services.AddSingleton<IMongoClient, MongoClient>(sp =>
 {
     var settings = sp.GetRequiredService<IOptions<MongoDBSettings>>().Value;
     return new MongoClient(settings.ConnectionString);
 });
 
+// Register IMongoDatabase with DI
+builder.Services.AddScoped(sp =>
+{
+    var client = sp.GetRequiredService<IMongoClient>();
+    var settings = sp.GetRequiredService<IOptions<MongoDBSettings>>().Value;
+    return client.GetDatabase(settings.DatabaseName); // Resolve IMongoDatabase
+});
+
+// Register ProductService and OrderService
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<OrderService>();
 
