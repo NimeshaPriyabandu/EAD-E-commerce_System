@@ -1,86 +1,64 @@
-using E_commerce_system.Configurations;
 using E_commerce_system.Models;
-using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace E_commerce_system.Services
 {
     public class OrderService
     {
         private readonly IMongoCollection<Order> _orders;
+        private readonly ProductService _productService;
 
-        public OrderService(IOptions<MongoDBSettings> mongoDBSettings)
+        public OrderService(IMongoDatabase database, ProductService productService)
         {
-            var client = new MongoClient(mongoDBSettings.Value.ConnectionString);
-            var database = client.GetDatabase(mongoDBSettings.Value.DatabaseName);
             _orders = database.GetCollection<Order>("Orders");
+            _productService = productService;
         }
 
         // Get all orders
-        public List<Order> Get() => _orders.Find(order => true).ToList();
+        public List<Order> GetAll() => _orders.Find(order => true).ToList();
 
         // Get a specific order by ID
-        public Order Get(string id) => _orders.Find<Order>(order => order.Id == id).FirstOrDefault();
+        public Order GetById(string id) => _orders.Find(order => order.Id == id).FirstOrDefault();
 
         // Create a new order
         public Order Create(Order order)
         {
-            order.OrderDate = DateTime.UtcNow; // Set the order date to now
+            order.TotalPrice = CalculateTotalPrice(order.Items);
             _orders.InsertOne(order);
             return order;
         }
 
-        // Update order details (only if status is "Processing")
-        public bool Update(string id, Order orderIn)
+        // Update an existing order
+        public void Update(string id, Order updatedOrder)
         {
-            var order = _orders.Find<Order>(o => o.Id == id && o.Status == "Processing").FirstOrDefault();
-            if (order == null)
-            {
-                return false; // Order not found or not in "Processing" state
-            }
-
-            orderIn.Id = order.Id;
-            _orders.ReplaceOne(o => o.Id == id, orderIn);
-            return true;
+            updatedOrder.UpdatedAt = DateTime.UtcNow;
+            updatedOrder.TotalPrice = CalculateTotalPrice(updatedOrder.Items);
+            _orders.ReplaceOne(order => order.Id == id, updatedOrder);
         }
 
-        // Cancel an order (only if status is "Processing")
-        public bool CancelOrder(string id)
+        // Cancel an order by updating the status
+        public void CancelOrder(string id)
         {
-            var order = _orders.Find<Order>(o => o.Id == id && o.Status == "Processing").FirstOrDefault();
-            if (order == null)
-            {
-                return false; // Order not found or not in "Processing" state
-            }
-
-            _orders.UpdateOne(order => order.Id == id, Builders<Order>.Update.Set(o => o.Status, "Cancelled"));
-            return true;
+            var update = Builders<Order>.Update.Set(o => o.Status, "Cancelled")
+                                               .Set(o => o.UpdatedAt, DateTime.UtcNow);
+            _orders.UpdateOne(order => order.Id == id, update);
         }
 
-        // Update order status (e.g., Dispatch, Deliver)
-        public bool UpdateOrderStatus(string id, string newStatus)
+        // Update order status (e.g., Shipped, Delivered)
+        public void UpdateOrderStatus(string id, string newStatus)
         {
-            var order = _orders.Find<Order>(o => o.Id == id).FirstOrDefault();
-            if (order == null || order.Status == "Cancelled" || order.Status == "Delivered")
-            {
-                return false; // Cannot update status for non-existing, cancelled, or delivered orders
-            }
+            var update = Builders<Order>.Update.Set(o => o.Status, newStatus)
+                                               .Set(o => o.UpdatedAt, DateTime.UtcNow);
+            _orders.UpdateOne(order => order.Id == id, update);
+        }
 
-            var updateDefinition = Builders<Order>.Update.Set(o => o.Status, newStatus);
-
-            if (newStatus == "Dispatched")
-            {
-                updateDefinition = updateDefinition.Set(o => o.DispatchedDate, DateTime.UtcNow);
-            }
-            else if (newStatus == "Delivered")
-            {
-                updateDefinition = updateDefinition.Set(o => o.DeliveryDate, DateTime.UtcNow);
-            }
-
-            _orders.UpdateOne(order => order.Id == id, updateDefinition);
-            return true;
+        // Calculate the total price of an order based on the items
+        private decimal CalculateTotalPrice(List<OrderItem> items)
+        {
+            return items.Sum(item => item.TotalPrice);
         }
     }
 }
