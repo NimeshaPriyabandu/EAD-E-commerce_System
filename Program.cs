@@ -22,7 +22,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-
 builder.Services.Configure<MongoDBSettings>(
     builder.Configuration.GetSection("MongoDBSettings"));
 
@@ -38,14 +37,10 @@ builder.Services.AddScoped(sp =>
 {
     var client = sp.GetRequiredService<IMongoClient>();
     var settings = sp.GetRequiredService<IOptions<MongoDBSettings>>().Value;
-
     return client.GetDatabase(settings.DatabaseName); // Resolve IMongoDatabase
 });
 
-// Register ProductService and OrderService
-    return client.GetDatabase(settings.DatabaseName);
-});
-
+// Register ProductService, OrderService, and UserService
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<UserService>();
@@ -76,56 +71,53 @@ builder.Services.AddAuthentication(options =>
     // Add debug log to verify token validation
     options.Events = new JwtBearerEvents
     {
-    OnTokenValidated = context =>
-    {
-        // Debugging token validation
-        var userId = context.Principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var userRole = context.Principal.FindFirst(ClaimTypes.Role)?.Value;
-
-        Console.WriteLine($"Token Validated for User ID: {userId}, Role: {userRole}");
-        
-        return Task.CompletedTask;
-    },
-    OnAuthenticationFailed = context =>
-    {
-        // Log authentication failure
-        Console.WriteLine($"Authentication Failed: {context.Exception.Message}");
-        
-        // Optional: Return custom error response for unauthenticated users
-        if (!context.Response.HasStarted)
+        OnTokenValidated = context =>
         {
-            context.Response.StatusCode = 401;
+            // Debugging token validation
+            var userId = context.Principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userRole = context.Principal.FindFirst(ClaimTypes.Role)?.Value;
+
+            Console.WriteLine($"Token Validated for User ID: {userId}, Role: {userRole}");
+            return Task.CompletedTask;
+        },
+        OnAuthenticationFailed = context =>
+        {
+            // Log authentication failure
+            Console.WriteLine($"Authentication Failed: {context.Exception.Message}");
+            
+            // Optional: Return custom error response for unauthenticated users
+            if (!context.Response.HasStarted)
+            {
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+                var result = System.Text.Json.JsonSerializer.Serialize(new { message = "Authentication failed" });
+                return context.Response.WriteAsync(result);
+            }
+
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            // This is invoked when the user is not authenticated
+            if (!context.Response.HasStarted)
+            {
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+                var result = System.Text.Json.JsonSerializer.Serialize(new { message = "You are not authorized" });
+                return context.Response.WriteAsync(result);
+            }
+
+            return Task.CompletedTask;
+        },
+        OnForbidden = context =>
+        {
+            // This is invoked when the user is authenticated but does not have the required roles
+            context.Response.StatusCode = 403;
             context.Response.ContentType = "application/json";
-            var result = System.Text.Json.JsonSerializer.Serialize(new { message = "Authentication failed" });
+            var result = System.Text.Json.JsonSerializer.Serialize(new { message = "You do not have sufficient privileges" });
             return context.Response.WriteAsync(result);
         }
-
-        return Task.CompletedTask;
-    },
-    OnChallenge = context =>
-    {
-        // This is invoked when the user is not authenticated
-        if (!context.Response.HasStarted)
-        {
-            context.Response.StatusCode = 401;
-            context.Response.ContentType = "application/json";
-            var result = System.Text.Json.JsonSerializer.Serialize(new { message = "You are not authorized" });
-            return context.Response.WriteAsync(result);
-        }
-
-        return Task.CompletedTask;
-    },
-    OnForbidden = context =>
-    {
-        // This is invoked when the user is authenticated but does not have the required roles
-        context.Response.StatusCode = 403;
-        context.Response.ContentType = "application/json";
-        var result = System.Text.Json.JsonSerializer.Serialize(new { message = "You do not have sufficient privileges" });
-        return context.Response.WriteAsync(result);
-    }
     };
-
-
 
     // Adjust the TokenValidationParameters to skip issuer and audience validation
     options.TokenValidationParameters = new TokenValidationParameters
