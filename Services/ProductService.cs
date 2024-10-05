@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using System.Collections.Generic;
 
+
 namespace E_commerce_system.Services
 {
     public class ProductService
@@ -107,5 +108,9 @@ namespace E_commerce_system.Services
             return true; // Return true on successful deactivation
         }
 
+        public List<Product> GetByCategory(string category)
+        {
+            return _products.Find(product => product.Category == category).ToList();
+        }
     }
 }
