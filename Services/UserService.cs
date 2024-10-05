@@ -51,8 +51,20 @@ namespace E_commerce_system.Services
             await _users.ReplaceOneAsync(u => u.Id == user.Id, user);
         }
 
-        // Activate or deactivate a customer account by Administrator
-        public async Task<bool> SetUserActivationStatusAsync(string userId, bool isActive)
+                // Activate a user account
+        public async Task<bool> ActivateUserAsync(string userId)
+        {
+            return await SetUserActivationStatusAsync(userId, true);
+        }
+
+        // Deactivate a user account
+        public async Task<bool> DeactivateUserAsync(string userId)
+        {
+            return await SetUserActivationStatusAsync(userId, false);
+        }
+
+        // Common method for activating or deactivating
+        private async Task<bool> SetUserActivationStatusAsync(string userId, bool isActive)
         {
             var user = await GetUserByIdAsync(userId);
             if (user == null)
@@ -88,5 +100,29 @@ namespace E_commerce_system.Services
             var hashOfInput = HashPassword(password);
             return hashOfInput == hashedPassword;
         }
+
+        // Updates a user's profile (general info like name, email, etc.)
+        public async Task<bool> UpdateUserProfileAsync(string userId, UpdateUserProfileDto updatedProfile)
+        {
+            var user = await GetUserByIdAsync(userId);
+            if (user == null)
+            {
+                return false; // User not found
+            }
+
+            // Update only the allowed profile fields
+            user.Name = updatedProfile.Name ?? user.Name;
+            user.PhoneNumber = updatedProfile.PhoneNumber ?? user.PhoneNumber;
+
+            // Save the updated user object
+            await UpdateUserAsync(user);
+            return true; // Successfully updated
+        }
+    }
+
+    public class UpdateUserProfileDto
+    {
+        public string Name { get; set; }
+        public string PhoneNumber { get; set; }
     }
 }

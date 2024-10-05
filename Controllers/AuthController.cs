@@ -69,33 +69,6 @@ namespace E_commerce_system.Controllers
             }
         }
 
-        // Endpoint to activate or deactivate a user account (Administrator only)
-        [HttpPut("users/{id}/activate")]
-        [Authorize(Roles = "Administrator")] // Only admins can activate/deactivate users
-        public async Task<IActionResult> ActivateDeactivateUser(string id, [FromBody] bool isActive)
-        {
-            try
-            {
-                var user = await _userService.GetUserByIdAsync(id);
-                if (user == null)
-                {
-                    return NotFound(new { message = "User not found." });
-                }
-
-                user.IsActive = isActive;
-                await _userService.UpdateUserAsync(user);
-
-                var status = isActive ? "activated" : "deactivated";
-                Console.WriteLine($"User {user.Email} has been {status}.");
-                return Ok(new { message = $"User {status} successfully." });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error during account activation/deactivation: {ex.Message}");
-                return StatusCode(500, new { message = "An error occurred while updating the user status.", error = ex.Message });
-            }
-        }
-
         [HttpPost("signup")]
         public async Task<IActionResult> Signup([FromBody] User user)
         {
@@ -140,6 +113,28 @@ namespace E_commerce_system.Controllers
             }
         }
 
+        [HttpPut("profile")]
+        [Authorize] // Only authorized users can update their profile
+        public async Task<IActionResult> UpdateUserProfile([FromBody] UpdateUserProfileDto updatedProfile)
+        {
+            // Extract the user ID from the JWT token
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User ID not found in token." });
+            }
+
+            // Update the user's profile
+            var result = await _userService.UpdateUserProfileAsync(userId, updatedProfile);
+            
+            if (!result)
+            {
+                return NotFound(new { message = "User not found or update failed." });
+            }
+
+            return Ok(new { message = "Profile updated successfully." });
+        }
 
 
         [HttpPost("login")]
@@ -181,6 +176,29 @@ namespace E_commerce_system.Controllers
                 return StatusCode(500, new { message = "An error occurred while processing the login request.", error = ex.Message });
             }
         }
+
+        [HttpPut("users/{id}/activate")]
+        public async Task<IActionResult> ActivateUser(string id)
+        {
+            var result = await _userService.ActivateUserAsync(id);
+            if (!result)
+            {
+                return NotFound(new { message = "User not found." });
+            }
+            return Ok(new { message = "User activated successfully." });
+        }
+
+        [HttpPut("users/{id}/deactivate")]
+        public async Task<IActionResult> DeactivateUser(string id)
+        {
+            var result = await _userService.DeactivateUserAsync(id);
+            if (!result)
+            {
+                return NotFound(new { message = "User not found." });
+            }
+            return Ok(new { message = "User deactivated successfully." });
+        }
+
 
 
 
