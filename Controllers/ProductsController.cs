@@ -60,62 +60,6 @@ namespace E_commerce_system.Controllers
         }
 
 
-        // [HttpPut("{id:length(24)}")]
-        // public IActionResult Update(string id, Product updatedProduct)
-        // {
-        //     var product = _productService.Get(id);
-        //     if (product == null)
-        //     {
-        //         return NotFound(); // Return 404 Not Found if the product doesn't exist
-        //     }
-
-        //     updatedProduct.Id = product.Id;
-        //     _productService.Update(id, updatedProduct);
-
-        //     return NoContent(); // Return 204 No Content on successful update
-        // }
-
-        // // DELETE: api/products/{id}
-        // [HttpDelete("{id:length(24)}")]
-        // public IActionResult Delete(string id)
-        // {
-        //     var product = _productService.Get(id);
-        //     if (product == null)
-        //     {
-        //         return NotFound(); // Return 404 Not Found if the product doesn't exist
-        //     }
-
-        //     _productService.Remove(id);
-        //     return NoContent(); // Return 204 No Content on successful deletion
-        // }
-
-        // [HttpPut("{id:length(24)}/activate")]
-        // public IActionResult ActivateProduct(string id)
-        // {
-        //     var product = _productService.Get(id);
-        //     if (product == null)
-        //     {
-        //         return NotFound();
-        //     }
-
-        //     _productService.ActivateProduct(id);
-        //     return NoContent();
-        // }
-
-        // // New Endpoint: Deactivate Product
-        // [HttpPut("{id:length(24)}/deactivate")]
-        // public IActionResult DeactivateProduct(string id)
-        // {
-        //     var product = _productService.Get(id);
-        //     if (product == null)
-        //     {
-        //         return NotFound();
-        //     }
-
-        //     _productService.DeactivateProduct(id);
-        //     return NoContent();
-        // }
-
         [HttpPut("{id:length(24)}")]
         [Authorize(Roles = "Vendor")]
         public IActionResult Update(string id, Product updatedProduct)
@@ -212,5 +156,41 @@ namespace E_commerce_system.Controllers
             _productService.DeactivateProduct(id, vendorId);
             return NoContent();
         }
+
+        [HttpGet("category/{category}")]
+        public ActionResult<List<Product>> GetProductsByCategory(string category)
+        {
+            var products = _productService.GetByCategory(category);
+            if (products.Count == 0)
+            {
+                return NotFound(new { message = "No products found in this category." });
+            }
+            return Ok(products);
+        }
+
+
+        [HttpGet("vendor")]
+        public ActionResult<List<Product>> GetProductsByVendor()
+        {
+            // Get vendor ID from the JWT token
+            var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // If vendorId is null, return unauthorized
+            if (string.IsNullOrEmpty(vendorId))
+            {
+                return Unauthorized(new { message = "Vendor ID not found in token." });
+            }
+
+            // Call the ProductService to get products by vendor
+            var products = _productService.GetProductsByVendor(vendorId);
+
+            if (products == null || products.Count == 0)
+            {
+                return NotFound(new { message = "No products found for this vendor." });
+            }
+            
+            return Ok(products); // Return 200 OK with the products list
+        }
+
     }
 }
