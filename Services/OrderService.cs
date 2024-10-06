@@ -26,6 +26,7 @@ namespace E_commerce_system.Services
         // Create a new order
         public string Create(Order order)
         {
+            order.Status = "Processing"; 
             order.TotalPrice = CalculateTotalPrice(order.Items);
             _orders.InsertOne(order);
             return "Order created successfully.";
@@ -102,5 +103,71 @@ namespace E_commerce_system.Services
         {
             return items.Sum(item => item.TotalPrice);
         }
+
+        public List<Order> GetOrdersByCustomerId(string customerId)
+        {
+            return _orders.Find(order => order.CustomerId == customerId).ToList();
+        }
+
+        // Customer requests cancellation; CSR approves/rejects it
+    public string RequestOrderCancellation(string orderId)
+    {
+        var order = GetById(orderId);
+        if (order == null)
+        {
+            return "Order not found.";
+        }
+
+        // Add the cancellation request directly to the order (or use some flag)
+        if (order.Status != "Processing")
+        {
+            return "Only 'Processing' orders can be canceled.";
+        }
+
+        order.Status = "Cancellation Requested"; // Set order status to 'Cancellation Requested'
+        // Optionally, save the reason for cancellation as a field
+        order.UpdatedAt = DateTime.UtcNow;
+
+        _orders.ReplaceOne(o => o.Id == orderId, order);
+        return "Cancellation requested successfully.";
+    }
+
+    // CSR processes the cancellation request
+    public string ProcessCancellationRequest(string orderId, string action)
+    {
+        var order = GetById(orderId);
+        if (order == null)
+        {
+            return "Order not found.";
+        }
+
+        if (order.Status != "Cancellation Requested")
+        {
+            return "No cancellation request found for this order.";
+        }
+
+        if (action == "Approve")
+        {
+            order.Status = "Cancelled"; // Mark order as canceled
+        }
+        else if (action == "Reject")
+        {
+            order.Status = "Processing"; // Revert order back to processing if rejected
+        }
+        else
+        {
+            return "Invalid action. Must be 'Approve' or 'Reject'.";
+        }
+
+        order.UpdatedAt = DateTime.UtcNow;
+        _orders.ReplaceOne(o => o.Id == orderId, order);
+        return $"Order {action.ToLower()} successfully.";
+    }
+
+    public List<Order> GetAllCancellationRequests()
+    {
+        return _orders.Find(order => order.Status == "Cancellation Requested").ToList();
+    }
+    
     }
 }

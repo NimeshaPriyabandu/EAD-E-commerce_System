@@ -2,6 +2,8 @@ using E_commerce_system.Models;
 using E_commerce_system.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace E_commerce_system.Controllers
 {
@@ -40,8 +42,19 @@ namespace E_commerce_system.Controllers
         [HttpPost]
         public ActionResult CreateOrder([FromBody] Order order)
         {
+            // Extract Customer ID from JWT token
+            var customerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(customerId))
+            {
+                return Unauthorized(new { message = "Customer ID not found in token." });
+            }
+
+            // Assign the customer ID to the order
+            order.CustomerId = customerId;
+
+            // Create the order
             var message = _orderService.Create(order);
-            return Ok(new { message = message }); // Explicitly returning the message in JSON format
+            return Ok(new { message = message });
         }
 
         // PUT: api/orders/{id}
@@ -81,6 +94,62 @@ namespace E_commerce_system.Controllers
             }
 
             return Ok(new { message = message }); // Return 200 with the updated status
+        }
+
+        [HttpGet("history")]
+        public IActionResult GetOrderHistory()
+        {
+         
+            var customerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(customerId))
+            {
+                return Unauthorized(new { message = "Customer ID not found in token." });
+            }
+
+            // Fetch the orders for the customer
+            var orders = _orderService.GetOrdersByCustomerId(customerId);
+            if (orders.Count == 0)
+            {
+                return NotFound(new { message = "No orders found for this customer." });
+            }
+
+            return Ok(new { message = "Orders retrieved successfully", orders });
+        }
+
+        [HttpPost("{id}/cancel-request")]
+        public IActionResult RequestCancellation(string id)
+        {
+            var message = _orderService.RequestOrderCancellation(id);
+            if (message == "Order not found.")
+            {
+                return NotFound(new { message = message });
+            }
+
+            return Ok(new { message = message });
+        }
+
+        // PUT: api/orders/{id}/cancel-process
+        [HttpPut("{id}/cancel-process")]
+        public IActionResult ProcessCancellation(string id, [FromBody] string action)
+        {
+            var message = _orderService.ProcessCancellationRequest(id, action);
+            if (message == "Order not found.")
+            {
+                return NotFound(new { message = message });
+            }
+
+            return Ok(new { message = message });
+        }
+
+        [HttpGet("cancellation-requests")]
+        public IActionResult GetAllCancellationRequests()
+        {
+            var cancellationRequests = _orderService.GetAllCancellationRequests();
+            if (cancellationRequests.Count == 0)
+            {
+                return NotFound(new { message = "No cancellation requests found." });
+            }
+            return Ok(new { message = "Cancellation requests retrieved successfully.", cancellationRequests });
         }
     }
 }

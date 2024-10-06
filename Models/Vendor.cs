@@ -17,6 +17,6 @@ namespace E_commerce_system.Models
         public string CustomerId { get; set; } = string.Empty; // UserId of the customer who gave the rating
         public int Rating { get; set; } = 0; // Rating value (e.g., 1 to 5 stars)
         public string Comment { get; set; } = string.Empty; // Optional comment
-        public User Customer { get; set; }
+        public User? Customer { get; set; } // Optional customer details
     }
 }

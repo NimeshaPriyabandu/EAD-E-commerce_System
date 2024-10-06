@@ -24,7 +24,8 @@ namespace E_commerce_system.Models
         public string ProductId { get; set; } = string.Empty; // ID of the product
         public string ProductName { get; set; } = string.Empty; // Product name for reference
         public int Quantity { get; set; } // Quantity of the product in the order
-        public decimal UnitPrice { get; set; } // Price per unit of the product
-        public decimal TotalPrice => Quantity * UnitPrice; // Total price for this item (Quantity * UnitPrice)
+        public decimal Price { get; set; } // Price per unit of the product
+        public decimal TotalPrice => Quantity * Price; // Total price for this item (Quantity * Price)
     }
+
 }

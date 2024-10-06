@@ -41,19 +41,23 @@ namespace E_commerce_system.Services
                 throw new Exception("Vendor not found");
             }
 
-            if (vendor is Vendor vendorObj)
+            // Fetch customer details using the CustomerId
+            var customer = await GetCustomerDetails(rating.CustomerId);
+            if (customer == null)
             {
-                // Add rating and comment
-                vendorObj.Ratings.Add(rating);
-                vendorObj.AverageRating = vendorObj.Ratings.Average(rating => rating.Rating);
+                throw new Exception("Customer not found");
+            }
 
-                await UpdateVendorAsync(vendorObj);
-            }
-            else
-            {
-                throw new Exception("User is not a vendor.");
-            }
+            // Set the Customer field
+            rating.Customer = customer;
+
+            vendor.Ratings.Add(rating);
+            vendor.AverageRating = vendor.Ratings.Average(r => r.Rating);
+
+            await UpdateVendorAsync(vendor);
         }
+
+
 
         // Get all comments for a vendor, now including customer details
         public async Task<List<CustomerRating>> GetVendorComments(string vendorId)
@@ -104,6 +108,18 @@ namespace E_commerce_system.Services
         {
             var filter = Builders<User>.Filter.Eq(u => u.Id, customerId);
             return await _users.Find(filter).FirstOrDefaultAsync(); // Fetch the customer (User) by Id
+        }
+
+        public async Task<List<CustomerRating>> GetAllRatingsAndCommentsForVendorAsync(string vendorId)
+        {
+            var vendor = await GetByIdAsync(vendorId);
+            if (vendor == null)
+            {
+                throw new Exception("Vendor not found");
+            }
+
+            // Return the list of customer ratings
+            return vendor.Ratings;
         }
     }
 }

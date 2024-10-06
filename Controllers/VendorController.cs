@@ -17,28 +17,42 @@ namespace E_commerce_system.Controllers
             _vendorService = vendorService;
         }
 
-        [HttpPost("{vendorId}/comment")] // Only customers can leave comments
+        [HttpPost("{vendorId}/addcomments")] // Only customers can leave comments
         public async Task<IActionResult> AddRating(string vendorId, [FromBody] CustomerRating rating)
         {
             try
             {
+                Console.WriteLine("Starting AddRating method.");
+
+                
                 var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrEmpty(customerId))
                 {
+                    Console.WriteLine("Customer ID not found in token.");
                     return Unauthorized(new { message = "Customer ID not found in token." });
                 }
 
+                Console.WriteLine($"Customer ID extracted from token: {customerId}");
+
+                // Set the CustomerId in the rating
                 rating.CustomerId = customerId;
 
+                // Log the current state of the rating object before passing it to the service
+                Console.WriteLine($"Rating Object: Rating = {rating.Rating}, Comment = {rating.Comment}, CustomerId = {rating.CustomerId}");
+
+                // Add the rating and comment to the vendor
                 await _vendorService.AddRatingAndComment(vendorId, rating);
 
+                Console.WriteLine("Rating and comment added successfully.");
                 return Ok(new { message = "Rating and comment added successfully." });
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error in AddRating method: {ex.Message}");
                 return StatusCode(500, new { message = "An error occurred while adding the comment.", error = ex.Message });
             }
         }
+
 
         [HttpGet("{vendorId}/comments")]
         public async Task<IActionResult> GetVendorComments(string vendorId)

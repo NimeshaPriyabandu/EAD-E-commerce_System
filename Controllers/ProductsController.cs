@@ -23,7 +23,9 @@ namespace E_commerce_system.Controllers
         
         public ActionResult<List<Product>> GetAll()
         {
-            return _productService.Get(); // Return 200 OK with the list of products
+            var products = _productService.Get(); // Get the list of products
+            return Ok(products);
+            // Return 200 OK with the list of products
         }
 
         // GET: api/products/{id}
@@ -120,11 +122,10 @@ namespace E_commerce_system.Controllers
                 return NotFound();
             }
 
-            // Get vendor ID from the JWT token
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            // Check if the logged-in vendor owns the product
-            if (product.VendorId != vendorId)
+            if (product.VendorId != vendorId || userRole != "Administrator")
             {
                 return Forbid("You are not authorized to activate this product."); // Return 403 Forbidden
             }
@@ -146,11 +147,12 @@ namespace E_commerce_system.Controllers
 
             // Get vendor ID from the JWT token
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            // Check if the logged-in vendor owns the product
-            if (product.VendorId != vendorId)
+            // Check if the logged-in vendor owns the product or if the user is an Administrator
+            if (product.VendorId != vendorId || userRole != "Administrator")
             {
-                return Forbid("You are not authorized to deactivate this product."); // Return 403 Forbidden
+                return Forbid("You are not authorized to activate this product."); // Return 403 Forbidden
             }
 
             _productService.DeactivateProduct(id, vendorId);
