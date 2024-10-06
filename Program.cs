@@ -46,6 +46,7 @@ builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<VendorService>();
 builder.Services.AddScoped<CartService>();
+builder.Services.AddScoped<InventoryService>();
 
 
 // ** Start of New Code for User Authentication ** //
