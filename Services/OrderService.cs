@@ -1,4 +1,5 @@
 using E_commerce_system.Models;
+using E_commerce_system.Services;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
@@ -11,10 +12,13 @@ namespace E_commerce_system.Services
         private readonly IMongoCollection<Order> _orders;
         private readonly ProductService _productService;
 
-        public OrderService(IMongoDatabase database, ProductService productService)
+        private readonly InventoryService _inventoryService; 
+
+        public OrderService(IMongoDatabase database, ProductService productService, InventoryService inventoryService)
         {
             _orders = database.GetCollection<Order>("Orders");
             _productService = productService;
+            _inventoryService = inventoryService; 
         }
 
         // Get all orders
@@ -110,64 +114,132 @@ namespace E_commerce_system.Services
         }
 
         // Customer requests cancellation; CSR approves/rejects it
-    public string RequestOrderCancellation(string orderId)
-    {
-        var order = GetById(orderId);
-        if (order == null)
+        public string RequestOrderCancellation(string orderId)
         {
-            return "Order not found.";
+            var order = GetById(orderId);
+            if (order == null)
+            {
+                return "Order not found.";
+            }
+
+            // Add the cancellation request directly to the order (or use some flag)
+            if (order.Status != "Processing")
+            {
+                return "Only 'Processing' orders can be canceled.";
+            }
+
+            order.Status = "Cancellation Requested"; // Set order status to 'Cancellation Requested'
+            // Optionally, save the reason for cancellation as a field
+            order.UpdatedAt = DateTime.UtcNow;
+
+            _orders.ReplaceOne(o => o.Id == orderId, order);
+            return "Cancellation requested successfully.";
         }
 
-        // Add the cancellation request directly to the order (or use some flag)
-        if (order.Status != "Processing")
+        // CSR processes the cancellation request
+        public string ProcessCancellationRequest(string orderId, string action)
         {
-            return "Only 'Processing' orders can be canceled.";
+            var order = GetById(orderId);
+            if (order == null)
+            {
+                return "Order not found.";
+            }
+
+            if (order.Status != "Cancellation Requested")
+            {
+                return "No cancellation request found for this order.";
+            }
+
+            if (action == "Approve")
+            {
+                // Mark order as canceled
+                order.Status = "Cancelled";
+
+                // Release stock for all products in the canceled order
+                foreach (var orderItem in order.Items)
+                {
+                    _inventoryService.ReleaseStock(orderItem.ProductId, orderItem.VendorId, orderItem.Quantity);
+                }
+            }
+            else if (action == "Reject")
+            {
+                // Revert order back to processing if cancellation is rejected
+                order.Status = "Processing";
+            }
+            else
+            {
+                return "Invalid action. Must be 'Approve' or 'Reject'.";
+            }
+
+            order.UpdatedAt = DateTime.UtcNow;
+            _orders.ReplaceOne(o => o.Id == orderId, order);
+
+            return $"Order {action.ToLower()} successfully.";
         }
 
-        order.Status = "Cancellation Requested"; // Set order status to 'Cancellation Requested'
-        // Optionally, save the reason for cancellation as a field
-        order.UpdatedAt = DateTime.UtcNow;
 
-        _orders.ReplaceOne(o => o.Id == orderId, order);
-        return "Cancellation requested successfully.";
-    }
-
-    // CSR processes the cancellation request
-    public string ProcessCancellationRequest(string orderId, string action)
-    {
-        var order = GetById(orderId);
-        if (order == null)
+        public List<Order> GetAllCancellationRequests()
         {
-            return "Order not found.";
+            return _orders.Find(order => order.Status == "Cancellation Requested").ToList();
         }
 
-        if (order.Status != "Cancellation Requested")
+        public List<Order> GetOrdersByVendorId(string vendorId)
         {
-            return "No cancellation request found for this order.";
+            // Fetch orders where any item has the given vendorId
+            return _orders.Find(order => order.Items.Any(item => item.VendorId == vendorId)).ToList();
         }
 
-        if (action == "Approve")
+        // Method to get all items related to a specific vendor
+        public List<OrderItem> GetItemsByVendorId(string vendorId)
         {
-            order.Status = "Cancelled"; // Mark order as canceled
+            var vendorItems = new List<OrderItem>();
+
+            // Get all orders that contain items from this vendor
+            var orders = GetOrdersByVendorId(vendorId);
+
+            // Extract the items belonging to the vendor from those orders
+            foreach (var order in orders)
+            {
+                var items = order.Items.Where(item => item.VendorId == vendorId).ToList();
+                vendorItems.AddRange(items);
+            }
+
+            return vendorItems;
         }
-        else if (action == "Reject")
+        
+        public string MarkItemAsDelivered(string orderId, string vendorId, string productId)
         {
-            order.Status = "Processing"; // Revert order back to processing if rejected
-        }
-        else
-        {
-            return "Invalid action. Must be 'Approve' or 'Reject'.";
+            var order = GetById(orderId);
+            if (order == null)
+            {
+                return "Order not found.";
+            }
+
+            var orderItem = order.Items.FirstOrDefault(i => i.ProductId == productId && i.VendorId == vendorId);
+            if (orderItem == null)
+            {
+                return "Order item not found for this vendor and product.";
+            }
+
+            orderItem.DeliveryStatus = "Delivered";
+
+            // Check if all items are delivered, and update order status accordingly
+            if (order.Items.All(i => i.DeliveryStatus == "Delivered"))
+            {
+                order.Status = "Delivered"; // All items delivered
+            }
+            else if (order.Items.Any(i => i.DeliveryStatus == "Delivered"))
+            {
+                order.Status = "Partially Delivered"; // Some items delivered, but not all
+            }
+
+            order.UpdatedAt = DateTime.UtcNow;
+            _orders.ReplaceOne(o => o.Id == order.Id, order);
+
+            return $"Order item for product {productId} marked as delivered by vendor {vendorId}.";
         }
 
-        order.UpdatedAt = DateTime.UtcNow;
-        _orders.ReplaceOne(o => o.Id == orderId, order);
-        return $"Order {action.ToLower()} successfully.";
-    }
 
-    public List<Order> GetAllCancellationRequests()
-    {
-        return _orders.Find(order => order.Status == "Cancellation Requested").ToList();
-    }
-    
+            
     }
 }

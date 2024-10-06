@@ -13,6 +13,7 @@ namespace E_commerce_system.Models
         public string VendorId { get; set; } = string.Empty;   // Link to Vendor
         public int AvailableQuantity { get; set; }             // Available stock
         public int ReservedQuantity { get; set; } = 0;         // Reserved stock
-        public int ReorderLevel { get; set; }                  // Threshold for low-stock alerts
+        public int ReorderLevel { get; set; }       
+        public List<string> Notifications { get; set; } = new List<string>();           
     }
 }

@@ -25,7 +25,10 @@ namespace E_commerce_system.Models
         public string ProductName { get; set; } = string.Empty; // Product name for reference
         public int Quantity { get; set; } // Quantity of the product in the order
         public decimal Price { get; set; } // Price per unit of the product
-        public decimal TotalPrice => Quantity * Price; // Total price for this item (Quantity * Price)
+        public decimal TotalPrice => Quantity * Price; 
+        public string VendorId { get; set; } 
+
+        public string DeliveryStatus { get; set; } = "Pending"; 
     }
 
 }

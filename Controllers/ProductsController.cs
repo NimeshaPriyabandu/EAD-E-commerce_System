@@ -12,10 +12,12 @@ namespace E_commerce_system.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly ProductService _productService;
+        private readonly InventoryService _inventoryService;
 
-        public ProductsController(ProductService productService)
+        public ProductsController(ProductService productService,InventoryService inventoryService)
         {
             _productService = productService;
+            _inventoryService = inventoryService;
         }
 
         // GET: api/products
@@ -58,6 +60,7 @@ namespace E_commerce_system.Controllers
             }
 
             _productService.Create(product);
+            _inventoryService.UpdateStock(product.Id, vendorId, product.Stock);
             return CreatedAtRoute("GetProduct", new { id = product.Id }, product); 
         }
 
@@ -84,6 +87,7 @@ namespace E_commerce_system.Controllers
             updatedProduct.Id = product.Id; // Ensure the ID remains unchanged
             updatedProduct.VendorId = vendorId; // Ensure the VendorId remains unchanged
             _productService.Update(id, vendorId,updatedProduct);
+            _inventoryService.UpdateStock(id, vendorId, updatedProduct.Stock);
 
             return NoContent(); // Return 204 No Content on successful update
         }
@@ -108,6 +112,8 @@ namespace E_commerce_system.Controllers
             }
 
             _productService.Remove(id,vendorId);
+            _inventoryService.UpdateStock(id, vendorId, -product.Stock);
+
             return NoContent(); // Return 204 No Content on successful deletion
         }
 
@@ -193,6 +199,8 @@ namespace E_commerce_system.Controllers
             
             return Ok(products); // Return 200 OK with the products list
         }
+
+
 
     }
 }

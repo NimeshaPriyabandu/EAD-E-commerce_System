@@ -12,10 +12,12 @@ namespace E_commerce_system.Controllers
     public class OrdersController : ControllerBase
     {
         private readonly OrderService _orderService;
+        private readonly InventoryService _inventoryService;
 
-        public OrdersController(OrderService orderService)
+        public OrdersController(OrderService orderService,InventoryService inventoryService)
         {
             _orderService = orderService;
+            _inventoryService = inventoryService;
         }
 
         // GET: api/orders
@@ -52,10 +54,27 @@ namespace E_commerce_system.Controllers
             // Assign the customer ID to the order
             order.CustomerId = customerId;
 
-            // Create the order
+            // Check stock for all products in the order and reserve stock
+            foreach (var orderItem in order.Items)
+            {
+                // Check if stock is available
+                bool stockAvailable = _inventoryService.CheckStock(orderItem.ProductId, orderItem.VendorId, orderItem.Quantity);
+                if (!stockAvailable)
+                {
+                    return BadRequest(new { message = $"Insufficient stock for product {orderItem.ProductName}. Please reduce quantity or try again later." });
+                }
+
+                // Reserve stock for the order
+                bool stockReserved = _inventoryService.ReserveStock(orderItem.ProductId, orderItem.VendorId, orderItem.Quantity);
+                if (!stockReserved)
+                {
+                    return BadRequest(new { message = $"Unable to reserve stock for product {orderItem.ProductId}. Please try again later." });
+                }
+            }
             var message = _orderService.Create(order);
             return Ok(new { message = message });
         }
+
 
         // PUT: api/orders/{id}
         [HttpPut("{id:length(24)}")]
@@ -151,5 +170,55 @@ namespace E_commerce_system.Controllers
             }
             return Ok(new { message = "Cancellation requests retrieved successfully.", cancellationRequests });
         }
+
+        [HttpPut("{orderId}/vendor/deliver/{productId}")]
+        [Authorize(Roles = "Vendor")]
+        public IActionResult MarkItemAsDelivered(string orderId, string productId)
+        {
+        // Get vendor ID from JWT token
+        var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(vendorId))
+        {
+            return Unauthorized(new { message = "Vendor ID not found in token." });
+        }
+
+        // Mark the item as delivered
+        var message = _orderService.MarkItemAsDelivered(orderId, vendorId, productId);
+
+        if (message == "Order not found.")
+        {
+            return NotFound(new { message });
+        }
+
+        if (message == "Order item not found for this vendor and product.")
+        {
+            return NotFound(new { message });
+        }
+
+        return Ok(new { message });
+        }
+
+        [HttpGet("vendor/orders")]
+        [Authorize(Roles = "Vendor")]
+        public IActionResult GetOrdersByVendor()
+        {
+            // Get vendor ID from JWT token
+            var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(vendorId))
+            {
+                return Unauthorized(new { message = "Vendor ID not found in token." });
+            }
+
+            var orders = _orderService.GetOrdersByVendorId(vendorId);
+            if (orders.Count == 0)
+            {
+                return NotFound(new { message = "No orders found for this vendor." });
+            }
+
+            return Ok(new { message = "Orders retrieved successfully.", orders });
+        }
+
     }
 }
