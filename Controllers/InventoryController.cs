@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// InventoryController.cs
+// 
+// This controller handles operations related to managing inventory, including 
+// checking stock, reserving and releasing stock, updating stock levels, and 
+// retrieving vendor-specific stock information. It also includes functionality 
+// for checking reorder levels and retrieving notifications for low stock.
+// -----------------------------------------------------------------------------
+
 using E_commerce_system.Models;
 using E_commerce_system.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -13,12 +22,13 @@ namespace E_commerce_system.Controllers
     {
         private readonly InventoryService _inventoryService;
 
+        // Constructor to initialize InventoryService.
         public InventoryController(InventoryService inventoryService)
         {
             _inventoryService = inventoryService;
         }
 
-        // Check stock for a product by a specific vendor
+        // Check if stock is available for a product and vendor.
         [HttpGet("checkStock/{productId}/{vendorId}/{quantity}")]
         public ActionResult<bool> CheckStock(string productId, string vendorId, int quantity)
         {
@@ -27,10 +37,10 @@ namespace E_commerce_system.Controllers
             {
                 return NotFound("Insufficient stock");
             }
-            return Ok(true); // Stock is available
+            return Ok(true); 
         }
 
-        // Reserve stock for a product by a vendor
+        // Reserve stock for a product and vendor.
         [HttpPost("reserveStock/{productId}/{vendorId}/{quantity}")]
         public IActionResult ReserveStock(string productId, string vendorId, int quantity)
         {
@@ -38,7 +48,7 @@ namespace E_commerce_system.Controllers
             return Ok("Stock reserved");
         }
 
-        // Release stock for a product by a vendor
+        // Release reserved stock for a product and vendor.
         [HttpPost("releaseStock/{productId}/{vendorId}/{quantity}")]
         public IActionResult ReleaseStock(string productId, string vendorId, int quantity)
         {
@@ -46,7 +56,7 @@ namespace E_commerce_system.Controllers
             return Ok("Stock released");
         }
 
-        // Update stock for a product by a vendor
+        // Update stock quantity for a product and vendor.
         [HttpPut("updateStock/{productId}/{vendorId}/{quantity}")]
         public IActionResult UpdateStock(string productId, string vendorId, int quantity)
         {
@@ -54,7 +64,7 @@ namespace E_commerce_system.Controllers
             return Ok("Stock updated");
         }
 
-        // Check reorder level and notify vendor
+        // Check the reorder level for a product and vendor.
         [HttpGet("checkReorderLevel/{productId}/{vendorId}")]
         public IActionResult CheckReorderLevel(string productId, string vendorId)
         {
@@ -62,14 +72,12 @@ namespace E_commerce_system.Controllers
             return Ok("Reorder level checked");
         }
 
-        // Get all notifications for a specific vendor
+        // Get notifications for a vendor regarding low stock.
         [HttpGet("notifications/{vendorId}")]
         public IActionResult GetNotifications(string vendorId)
         {
-            // Fetch all inventories for the given vendor
             var notifications = _inventoryService.GetVendorNotifications(vendorId);
 
-            // Check if there are any notifications
             if (notifications.Count == 0)
             {
                 return NotFound(new { message = "No notifications found for this vendor." });
@@ -78,10 +86,10 @@ namespace E_commerce_system.Controllers
             return Ok(new { message = "Notifications retrieved successfully.", notifications });
         }
 
+        // Get all stock records for the logged-in vendor.
         [HttpGet("vendor/stocks")]
         public IActionResult GetStocksByVendor()
         {
-            // Retrieve vendor ID from JWT token
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             
             if (string.IsNullOrEmpty(vendorId))
@@ -89,10 +97,8 @@ namespace E_commerce_system.Controllers
                 return Unauthorized(new { message = "Vendor ID not found in token." });
             }
 
-            // Fetch all inventory records for the vendor
             var vendorStocks = _inventoryService.GetStocksByVendor(vendorId);
 
-            // Check if the vendor has any stock
             if (vendorStocks.Count == 0)
             {
                 return NotFound(new { message = "No stock records found for this vendor." });
@@ -100,7 +106,5 @@ namespace E_commerce_system.Controllers
 
             return Ok(new { message = "Stock records retrieved successfully.", vendorStocks });
         }
-
-
     }
 }

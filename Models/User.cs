@@ -1,11 +1,20 @@
+// -----------------------------------------------------------------------------
+// User.cs
+// 
+// Represents a user in the e-commerce system. This base class includes common 
+// user details such as email, password hash, role, active status, and token 
+// management. The class also includes personal details such as name and phone 
+// number. Inheritance is used to define more specific types of users like vendors.
+// -----------------------------------------------------------------------------
+
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System.ComponentModel.DataAnnotations;
 
 namespace E_commerce_system.Models
 {
-    [BsonDiscriminator("User")] // Add discriminator for User
-    [BsonKnownTypes(typeof(Vendor))] // Let MongoDB know that Vendor is a subclass of User
+    [BsonDiscriminator("User")] 
+    [BsonKnownTypes(typeof(Vendor))] 
     public class User
     {
         [BsonId]
@@ -17,12 +26,12 @@ namespace E_commerce_system.Models
         public string Email { get; set; } = string.Empty;
 
         [Required]
-        public string PasswordHash { get; set; } = string.Empty; // Store hashed password
+        public string PasswordHash { get; set; } = string.Empty; 
 
         [Required]
-        public string Role { get; set; } = "Customer"; // Default role
+        public string Role { get; set; } = "Customer"; 
 
-        public bool IsActive { get; set; } = false; // Default is inactive, needs activation by CSR/Admin
+        public bool IsActive { get; set; } = false; 
 
         public string RefreshToken { get; set; } = string.Empty;
         public DateTime RefreshTokenExpiryTime { get; set; }

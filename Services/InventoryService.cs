@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// InventoryService.cs
+// 
+// This service class provides functionality for managing inventory in the 
+// e-commerce system. It supports operations such as checking, updating, 
+// reserving, and releasing stock, as well as monitoring inventory levels 
+// for reorder alerts and managing vendor notifications.
+// -----------------------------------------------------------------------------
+
 using E_commerce_system.Configurations;
 using E_commerce_system.Models;
 using Microsoft.Extensions.Options;
@@ -10,6 +19,7 @@ namespace E_commerce_system.Services
     {
         private readonly IMongoCollection<Inventory> _inventory;
 
+        // Constructor to initialize MongoDB connection and collection.
         public InventoryService(IOptions<MongoDBSettings> mongoDBSettings)
         {
             var client = new MongoClient(mongoDBSettings.Value.ConnectionString);
@@ -17,115 +27,106 @@ namespace E_commerce_system.Services
             _inventory = database.GetCollection<Inventory>("Inventory");
         }
 
+        // Get stock items for a specific vendor.
         public List<Inventory> GetStocksByVendor(string vendorId)
         {
-            // Find all inventory records that belong to the specified vendor
             var vendorStocks = _inventory.Find(i => i.VendorId == vendorId).ToList();
-
             return vendorStocks;
         }
 
-        
+        // Check if stock is available for a product and vendor.
         public bool CheckStock(string productId, string vendorId, int quantity)
         {
             var inventory = _inventory.Find(i => i.ProductId == productId && i.VendorId == vendorId).FirstOrDefault();
             return inventory != null && inventory.AvailableQuantity >= quantity;
         }
 
+        // Update stock for a specific product and vendor.
         public void UpdateStock(string productId, string vendorId, int quantity)
         {
             var inventory = _inventory.Find(i => i.ProductId == productId && i.VendorId == vendorId).FirstOrDefault();
             
             if (inventory != null)
             {
-                // If inventory exists, update the available stock
-                inventory.AvailableQuantity += quantity;
+                // Update existing stock.
+                inventory.AvailableQuantity = quantity;
                 _inventory.ReplaceOne(i => i.Id == inventory.Id, inventory);
             }
             else
             {
-                // If inventory doesn't exist, create a new one
+                // Create new inventory record.
                 var newInventory = new Inventory
                 {
                     ProductId = productId,
                     VendorId = vendorId,
-                    AvailableQuantity = quantity, // Initialize with the provided quantity
-                    ReservedQuantity = 0,         // Initialize reserved quantity as 0
-                    ReorderLevel = 10,            // Default reorder level (can be modified)
-                    Notifications = new List<string>() // Initialize with an empty notification list
+                    AvailableQuantity = quantity,
+                    ReservedQuantity = 0,
+                    ReorderLevel = 10,
+                    Notifications = new List<string>()
                 };
-
-                // Insert the new inventory record into the database
                 _inventory.InsertOne(newInventory);
             }
 
-            // After updating or creating the inventory, check if it's below the reorder level
+            // Check if stock is below reorder level.
             CheckReorderLevel(productId, vendorId);
         }
 
-
-        // Reserve stock when an order is placed by a vendor
+        // Reserve stock for an order.
         public bool ReserveStock(string productId, string vendorId, int quantity)
         {
             var inventory = _inventory.Find(i => i.ProductId == productId && i.VendorId == vendorId).FirstOrDefault();
             
             if (inventory != null && inventory.AvailableQuantity >= quantity)
             {
-                // Decrease available stock and increase reserved stock
+                // Reserve stock by reducing available quantity.
                 inventory.AvailableQuantity -= quantity;
                 inventory.ReservedQuantity += quantity;
-
-                // Update the inventory in the database
                 _inventory.ReplaceOne(i => i.Id == inventory.Id, inventory);
-
-                return true; // Stock reservation successful
+                return true; 
             }
 
-            // If not enough stock or inventory not found, return false
             return false;
         }
 
-
-        // Release stock if an order is canceled by a vendor
+        // Release reserved stock back to available stock.
         public void ReleaseStock(string productId, string vendorId, int quantity)
         {
             var inventory = _inventory.Find(i => i.ProductId == productId && i.VendorId == vendorId).FirstOrDefault();
             if (inventory != null && inventory.ReservedQuantity >= quantity)
             {
+                // Release stock back to available quantity.
                 inventory.AvailableQuantity += quantity;
                 inventory.ReservedQuantity -= quantity;
                 _inventory.ReplaceOne(i => i.Id == inventory.Id, inventory);
             }
         }
 
+        // Check if inventory is below reorder level and generate notifications.
         public void CheckReorderLevel(string productId, string vendorId)
         {
             var inventory = _inventory.Find(i => i.ProductId == productId && i.VendorId == vendorId).FirstOrDefault();
             
             if (inventory != null && inventory.AvailableQuantity <= inventory.ReorderLevel)
             {
-                // Prepare the notification message
+                // Create low stock alert notification.
                 string notification = $"Low stock alert: Only {inventory.AvailableQuantity} units left in stock for Product {productId}.";
 
-                // Add the notification only if it doesn't already exist
                 if (!inventory.Notifications.Contains(notification))
                 {
                     inventory.Notifications.Add(notification);
                 }
 
-                // Update the inventory in the database with the new notification
                 _inventory.ReplaceOne(i => i.Id == inventory.Id, inventory);
             }
         }
 
+        // Retrieve all notifications for a specific vendor.
         public List<string> GetVendorNotifications(string vendorId)
         {
-            // Retrieve all inventory items for the vendor
             var inventories = _inventory.Find(i => i.VendorId == vendorId).ToList();
-            
-            // Collect all notifications
             var notifications = new List<string>();
 
+            // Collect notifications from all inventory records.
             foreach (var inventory in inventories)
             {
                 notifications.AddRange(inventory.Notifications);
@@ -133,6 +134,5 @@ namespace E_commerce_system.Services
 
             return notifications;
         }
-
     }
 }

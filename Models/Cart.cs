@@ -1,3 +1,18 @@
+// -----------------------------------------------------------------------------
+// CartItem.cs
+// 
+// Represents an individual item in a user's cart. Contains product details 
+// such as product ID, name, quantity, and price at the time of adding the item 
+// to the cart.
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart.cs
+// 
+// Represents a user's shopping cart. It contains a list of cart items, tracks 
+// the total price, and is associated with a specific user.
+// -----------------------------------------------------------------------------
+
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System.Collections.Generic;

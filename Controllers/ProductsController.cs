@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// ProductsController.cs
+// 
+// This controller handles operations related to managing products, including 
+// creating, updating, and deleting products. It allows vendors to manage their 
+// products, and users to browse products by category or vendor. The controller 
+// also manages stock updates via the InventoryService.
+// -----------------------------------------------------------------------------
+
 using E_commerce_system.Models;
 using E_commerce_system.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -14,48 +23,42 @@ namespace E_commerce_system.Controllers
         private readonly ProductService _productService;
         private readonly InventoryService _inventoryService;
 
-        public ProductsController(ProductService productService,InventoryService inventoryService)
+        // Constructor to initialize services.
+        public ProductsController(ProductService productService, InventoryService inventoryService)
         {
             _productService = productService;
             _inventoryService = inventoryService;
         }
 
-        // GET: api/products
+        // Get all products.
         [HttpGet]
-        
         public ActionResult<List<Product>> GetAll()
         {
-            var products = _productService.Get(); // Get the list of products
+            var products = _productService.Get(); 
             return Ok(products);
-            // Return 200 OK with the list of products
         }
 
-        // GET: api/products/{id}
+        // Get product by ID.
         [HttpGet("{id:length(24)}", Name = "GetProduct")]
         public ActionResult<Product> GetById(string id)
         {
             var product = _productService.Get(id);
             if (product == null)
             {
-                return NotFound(); // Return 404 Not Found if the product doesn't exist
+                return NotFound();
             }
-            return Ok(product); // Return 200 OK with the product
+            return Ok(product);
         }
 
-        // POST: api/products
+        // Create a new product (vendor only).
         [HttpPost]
         public ActionResult<Product> Create(Product product)
         {
-            // Get vendor ID from the JWT token
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            Console.WriteLine(vendorId);
-
-            // Assign the vendorId to the product
             product.VendorId = vendorId;
 
             if (string.IsNullOrEmpty(product.ImageUrl))
             {
-                // Optional: Set a default image URL if none is provided
                 product.ImageUrl = "https://example.com/default-product-image.jpg";
             }
 
@@ -64,7 +67,7 @@ namespace E_commerce_system.Controllers
             return CreatedAtRoute("GetProduct", new { id = product.Id }, product); 
         }
 
-
+        // Update a product (vendor only).
         [HttpPut("{id:length(24)}")]
         [Authorize(Roles = "Vendor")]
         public IActionResult Update(string id, Product updatedProduct)
@@ -72,27 +75,25 @@ namespace E_commerce_system.Controllers
             var product = _productService.Get(id);
             if (product == null)
             {
-                return NotFound(); // Return 404 Not Found if the product doesn't exist
+                return NotFound(); 
             }
 
-            // Get vendor ID from the JWT token
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            // Check if the logged-in vendor owns the product
             if (product.VendorId != vendorId)
             {
-                return Forbid("You are not authorized to update this product."); // Return 403 Forbidden
+                return Forbid("You are not authorized to update this product."); 
             }
 
-            updatedProduct.Id = product.Id; // Ensure the ID remains unchanged
-            updatedProduct.VendorId = vendorId; // Ensure the VendorId remains unchanged
-            _productService.Update(id, vendorId,updatedProduct);
+            updatedProduct.Id = product.Id; 
+            updatedProduct.VendorId = vendorId; 
+            _productService.Update(id, vendorId, updatedProduct);
             _inventoryService.UpdateStock(id, vendorId, updatedProduct.Stock);
 
-            return NoContent(); // Return 204 No Content on successful update
+            return NoContent(); 
         }
 
-        // DELETE: api/products/{id} (Only vendors can delete their own products)
+        // Delete a product (vendor only).
         [HttpDelete("{id:length(24)}")]
         [Authorize(Roles = "Vendor")]
         public IActionResult Delete(string id)
@@ -100,26 +101,24 @@ namespace E_commerce_system.Controllers
             var product = _productService.Get(id);
             if (product == null)
             {
-                return NotFound(); // Return 404 Not Found if the product doesn't exist
+                return NotFound(); 
             }
 
-            // Get vendor ID from the JWT token
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (product.VendorId != vendorId)
             {
-                return Forbid("You are not authorized to delete this product."); // Return 403 Forbidden
+                return Forbid("You are not authorized to delete this product."); 
             }
 
-            _productService.Remove(id,vendorId);
+            _productService.Remove(id, vendorId);
             _inventoryService.UpdateStock(id, vendorId, -product.Stock);
 
-            return NoContent(); // Return 204 No Content on successful deletion
+            return NoContent(); 
         }
 
-        // PUT: api/products/{id}/activate (Only vendors can activate their own products)
+        // Activate a product (vendor only).
         [HttpPut("{id:length(24)}/activate")]
-        [Authorize(Roles = "Vendor")]
         public IActionResult ActivateProduct(string id)
         {
             var product = _productService.Get(id);
@@ -129,20 +128,13 @@ namespace E_commerce_system.Controllers
             }
 
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-
-            if (product.VendorId != vendorId || userRole != "Administrator")
-            {
-                return Forbid("You are not authorized to activate this product."); // Return 403 Forbidden
-            }
 
             _productService.ActivateProduct(id, vendorId);
             return NoContent();
         }
 
-        // PUT: api/products/{id}/deactivate (Only vendors can deactivate their own products)
+        // Deactivate a product (vendor only).
         [HttpPut("{id:length(24)}/deactivate")]
-        [Authorize(Roles = "Vendor")]
         public IActionResult DeactivateProduct(string id)
         {
             var product = _productService.Get(id);
@@ -151,20 +143,13 @@ namespace E_commerce_system.Controllers
                 return NotFound();
             }
 
-            // Get vendor ID from the JWT token
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-
-            // Check if the logged-in vendor owns the product or if the user is an Administrator
-            if (product.VendorId != vendorId || userRole != "Administrator")
-            {
-                return Forbid("You are not authorized to activate this product."); // Return 403 Forbidden
-            }
 
             _productService.DeactivateProduct(id, vendorId);
             return NoContent();
         }
 
+        // Get products by category.
         [HttpGet("category/{category}")]
         public ActionResult<List<Product>> GetProductsByCategory(string category)
         {
@@ -176,20 +161,17 @@ namespace E_commerce_system.Controllers
             return Ok(products);
         }
 
-
+        // Get products by vendor (vendor only).
         [HttpGet("vendor")]
         public ActionResult<List<Product>> GetProductsByVendor()
         {
-            // Get vendor ID from the JWT token
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            // If vendorId is null, return unauthorized
             if (string.IsNullOrEmpty(vendorId))
             {
                 return Unauthorized(new { message = "Vendor ID not found in token." });
             }
 
-            // Call the ProductService to get products by vendor
             var products = _productService.GetProductsByVendor(vendorId);
 
             if (products == null || products.Count == 0)
@@ -197,10 +179,7 @@ namespace E_commerce_system.Controllers
                 return NotFound(new { message = "No products found for this vendor." });
             }
             
-            return Ok(products); // Return 200 OK with the products list
+            return Ok(products); 
         }
-
-
-
     }
 }

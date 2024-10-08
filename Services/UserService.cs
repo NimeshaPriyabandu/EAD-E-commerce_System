@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+// UserService.cs
+// 
+// This service class handles user management, including creation, retrieval, 
+// updating user profiles, and managing activation/deactivation of users. 
+// It also includes password hashing and validation mechanisms.
+// -----------------------------------------------------------------------------
+
 using E_commerce_system.Models;
 using MongoDB.Driver;
 using System.Security.Cryptography;
@@ -9,82 +17,86 @@ namespace E_commerce_system.Services
     {
         private readonly IMongoCollection<User> _users;
 
+        // Constructor to initialize the users collection.
         public UserService(IMongoDatabase database)
         {
             _users = database.GetCollection<User>("Users");
         }
 
-        // Retrieves a user by email; this can return a User or a Vendor (since Vendor inherits from User)
+        // Get user by email.
         public async Task<User?> GetUserByEmailAsync(string email)
         {
             return await _users.Find(u => u.Email == email).FirstOrDefaultAsync();
         }
 
-        // Retrieves a user by their ID (for getting account details)
+        // Get all users.
+        public async Task<List<User>> GetAllUsersAsync()
+        {
+            return await _users.Find(_ => true).ToListAsync(); 
+        }
+
+        // Get user by ID.
         public async Task<User?> GetUserByIdAsync(string userId)
         {
             return await _users.Find(u => u.Id == userId).FirstOrDefaultAsync();
         }
 
-        // Creates a user or vendor in the collection
+        // Create a new user.
         public async Task<User> CreateUserAsync(User user)
         {
-            // Insert the user (polymorphic behavior will be handled by MongoDB with discriminators)
             await _users.InsertOneAsync(user); 
             return user;
         }
 
-        // Validates user credentials by comparing the password hash
+        // Validate user credentials.
         public async Task<bool> ValidateUserCredentialsAsync(string email, string password)
         {
             var user = await GetUserByEmailAsync(email);
             if (user == null) return false;
 
-            // Check if the password matches
             return VerifyPassword(password, user.PasswordHash);
         }
 
-        // Updates a user or vendor's information
+        // Update user information.
         public async Task UpdateUserAsync(User user)
         {
-            // Use ReplaceOneAsync to update the user in the collection
             await _users.ReplaceOneAsync(u => u.Id == user.Id, user);
         }
 
-                // Activate a user account
+        // Activate user by ID.
         public async Task<bool> ActivateUserAsync(string userId)
         {
             return await SetUserActivationStatusAsync(userId, true);
         }
 
-        // Deactivate a user account
+        // Deactivate user by ID.
         public async Task<bool> DeactivateUserAsync(string userId)
         {
             return await SetUserActivationStatusAsync(userId, false);
         }
 
-        // Common method for activating or deactivating
+        // Set user activation status.
         private async Task<bool> SetUserActivationStatusAsync(string userId, bool isActive)
         {
             var user = await GetUserByIdAsync(userId);
             if (user == null)
             {
-                return false; // User not found
+                return false; 
             }
 
             user.IsActive = isActive;
             await UpdateUserAsync(user);
-            return true; // Successfully updated
+            return true; 
         }
 
-        // Get only customers
+        // Get all customers.
         public async Task<List<User>> GetAllCustomersAsync()
         {
             var filter = Builders<User>.Filter.Eq(u => u.Role, "Customer");
-            return await _users.Find(filter).ToListAsync(); // Fetch only users with Role = "Customer"
+            return await _users.Find(filter).ToListAsync();
         }
 
-        // Hash the password using SHA-256
+        // Hash password using SHA-256.
         public string HashPassword(string password)
         {
             using (var sha256 = SHA256.Create())
@@ -94,32 +106,32 @@ namespace E_commerce_system.Services
             }
         }
 
-        // Verifies the input password against the stored hash
+        // Verify password.
         public bool VerifyPassword(string password, string hashedPassword)
         {
             var hashOfInput = HashPassword(password);
             return hashOfInput == hashedPassword;
         }
 
-        // Updates a user's profile (general info like name, email, etc.)
+        // Update user profile (name and phone number).
         public async Task<bool> UpdateUserProfileAsync(string userId, UpdateUserProfileDto updatedProfile)
         {
             var user = await GetUserByIdAsync(userId);
             if (user == null)
             {
-                return false; // User not found
+                return false; 
             }
 
-            // Update only the allowed profile fields
+            // Update fields only if new values are provided.
             user.Name = updatedProfile.Name ?? user.Name;
             user.PhoneNumber = updatedProfile.PhoneNumber ?? user.PhoneNumber;
 
-            // Save the updated user object
             await UpdateUserAsync(user);
-            return true; // Successfully updated
+            return true; 
         }
     }
 
+    // DTO for updating user profile.
     public class UpdateUserProfileDto
     {
         public string Name { get; set; }

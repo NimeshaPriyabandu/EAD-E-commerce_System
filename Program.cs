@@ -1,3 +1,10 @@
+// -----------------------------------------------------------------------------
+// Program.cs
+// 
+// This file configures and runs the web application, including setting up CORS, 
+// JWT-based authentication, dependency injection for services, and middleware 
+// for handling authentication and authorization.
+// -----------------------------------------------------------------------------
 using E_commerce_system.Configurations;
 using E_commerce_system.Services;
 using Microsoft.Extensions.Options;

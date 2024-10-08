@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+// CartController.cs
+// 
+// This controller handles operations related to the shopping cart, including 
+// adding, updating, and removing items in the cart. It also allows users to 
+// clear their cart and retrieve the current state of their cart.
+// -----------------------------------------------------------------------------
+
 using E_commerce_system.Models;
 using E_commerce_system.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -8,18 +16,20 @@ namespace E_commerce_system.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // Ensure that only authorized users can manage their cart
+    [Authorize] 
     public class CartController : ControllerBase
     {
         private readonly CartService _cartService;
         private readonly UserService _userService;
 
+        // Constructor to initialize CartService and UserService.
         public CartController(CartService cartService, UserService userService)
         {
             _cartService = cartService;
             _userService = userService;
         }
 
+        // Get the cart for the logged-in user.
         [HttpGet]
         public async Task<IActionResult> GetCart()
         {
@@ -32,6 +42,7 @@ namespace E_commerce_system.Controllers
             return Ok(cart);
         }
 
+        // Add a product to the cart.
         [HttpPost("add")]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartRequest request)
         {
@@ -44,6 +55,7 @@ namespace E_commerce_system.Controllers
             return Ok(new { message = "Product added to cart." });
         }
 
+        // Update the quantity of an item in the cart.
         [HttpPost("update")]
         public async Task<IActionResult> UpdateCartItem([FromBody] UpdateCartItemRequest request)
         {
@@ -56,6 +68,7 @@ namespace E_commerce_system.Controllers
             return Ok(new { message = "Cart item updated." });
         }
 
+        // Remove a product from the cart.
         [HttpDelete("remove/{productId}")]
         public async Task<IActionResult> RemoveFromCart(string productId)
         {
@@ -68,6 +81,7 @@ namespace E_commerce_system.Controllers
             return Ok(new { message = "Product removed from cart." });
         }
 
+        // Clear the entire cart.
         [HttpDelete("clear")]
         public async Task<IActionResult> ClearCart()
         {
@@ -81,12 +95,14 @@ namespace E_commerce_system.Controllers
         }
     }
 
+    // DTO for adding a product to the cart.
     public class AddToCartRequest
     {
         public string ProductId { get; set; }
         public int Quantity { get; set; }
     }
 
+    // DTO for updating the quantity of a cart item.
     public class UpdateCartItemRequest
     {
         public string ProductId { get; set; }

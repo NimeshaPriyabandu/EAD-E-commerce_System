@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// VendorController.cs
+// 
+// This controller handles operations related to vendors, including adding 
+// customer ratings and comments, retrieving vendor comments, and retrieving 
+// vendor ratings. Customers can also view their own ratings and comments 
+// associated with vendors.
+// -----------------------------------------------------------------------------
+
 using E_commerce_system.Models;
 using E_commerce_system.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -12,19 +21,20 @@ namespace E_commerce_system.Controllers
     {
         private readonly VendorService _vendorService;
 
+        // Constructor to initialize VendorService.
         public VendorController(VendorService vendorService)
         {
             _vendorService = vendorService;
         }
 
-        [HttpPost("{vendorId}/addcomments")] // Only customers can leave comments
+        // Add a customer rating and comment to a vendor.
+        [HttpPost("{vendorId}/addcomments")] 
         public async Task<IActionResult> AddRating(string vendorId, [FromBody] CustomerRating rating)
         {
             try
             {
                 Console.WriteLine("Starting AddRating method.");
 
-                
                 var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrEmpty(customerId))
                 {
@@ -34,13 +44,10 @@ namespace E_commerce_system.Controllers
 
                 Console.WriteLine($"Customer ID extracted from token: {customerId}");
 
-                // Set the CustomerId in the rating
                 rating.CustomerId = customerId;
 
-                // Log the current state of the rating object before passing it to the service
                 Console.WriteLine($"Rating Object: Rating = {rating.Rating}, Comment = {rating.Comment}, CustomerId = {rating.CustomerId}");
 
-                // Add the rating and comment to the vendor
                 await _vendorService.AddRatingAndComment(vendorId, rating);
 
                 Console.WriteLine("Rating and comment added successfully.");
@@ -53,7 +60,7 @@ namespace E_commerce_system.Controllers
             }
         }
 
-
+        // Get comments for a vendor.
         [HttpGet("{vendorId}/comments")]
         public async Task<IActionResult> GetVendorComments(string vendorId)
         {
@@ -61,7 +68,7 @@ namespace E_commerce_system.Controllers
             return Ok(comments);
         }
 
-
+        // Get all vendors.
         [HttpGet("vendors/")]
         public async Task<IActionResult> GetAllVendors()
         {
@@ -87,7 +94,7 @@ namespace E_commerce_system.Controllers
             }
         }
 
-
+        // Get the average rating for a vendor.
         [HttpGet("{vendorId}/rating")]
         public async Task<IActionResult> GetVendorAverageRating(string vendorId)
         {
@@ -99,6 +106,7 @@ namespace E_commerce_system.Controllers
             return Ok(new { AverageRating = vendor.AverageRating });
         }
 
+        // Get all ratings and comments made by the logged-in customer.
         [HttpGet("my-ratings")]
         [Authorize(Roles = "Customer")]
         public async Task<IActionResult> GetCustomerRatingsAndComments()
@@ -112,6 +120,5 @@ namespace E_commerce_system.Controllers
             var ratings = await _vendorService.GetRatingsByCustomer(customerId);
             return Ok(ratings);
         }
-
     }
 }

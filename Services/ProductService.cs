@@ -1,9 +1,16 @@
+// -----------------------------------------------------------------------------
+// ProductService.cs
+// 
+// This service class provides operations related to product management, 
+// including creating, updating, deleting, activating, deactivating, and 
+// retrieving products. It also allows filtering products by vendor and category.
+// -----------------------------------------------------------------------------
+
 using E_commerce_system.Configurations;
 using E_commerce_system.Models;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using System.Collections.Generic;
-
 
 namespace E_commerce_system.Services
 {
@@ -11,6 +18,7 @@ namespace E_commerce_system.Services
     {
         private readonly IMongoCollection<Product> _products;
 
+        // Constructor to initialize MongoDB connection and collection.
         public ProductService(IOptions<MongoDBSettings> mongoDBSettings)
         {
             var client = new MongoClient(mongoDBSettings.Value.ConnectionString);
@@ -18,96 +26,86 @@ namespace E_commerce_system.Services
             _products = database.GetCollection<Product>("Products");
         }
 
-        // Get all products
+        // Get all products.
         public List<Product> Get() => _products.Find(product => true).ToList();
 
-        // Get a product by ID
+        // Get product by ID.
         public Product Get(string id) => _products.Find<Product>(product => product.Id == id).FirstOrDefault();
 
+        // Get products by vendor ID.
         public List<Product> GetProductsByVendor(string vendorId)
         {
             return _products.Find(product => product.VendorId == vendorId).ToList();
         }
 
-        // Create a new product
+        // Create a new product.
         public Product Create(Product product)
         {
             _products.InsertOne(product);
             return product;
         }
 
-        
-        // public void Update(string id, Product productIn) =>
-        //     _products.ReplaceOne(product => product.Id == id, productIn);
-
-        // // Remove a product
-        // public void Remove(string id) => _products.DeleteOne(product => product.Id == id);
-
-        // // Activate a product
-        // public void ActivateProduct(string id) =>
-        //     _products.UpdateOne(product => product.Id == id, Builders<Product>.Update.Set(p => p.IsActive, true));
-
-        // // Deactivate a product
-        // public void DeactivateProduct(string id) =>
-        //     _products.UpdateOne(product => product.Id == id, Builders<Product>.Update.Set(p => p.IsActive, false));
-
+        // Update a product, ensure vendor owns the product.
         public bool Update(string id, string vendorId, Product productIn)
         {
             var product = Get(id);
 
-            // Check if the vendor owns the product
+            // Check if the vendor owns the product.
             if (product == null || product.VendorId != vendorId)
             {
-                return false; // Return false if vendor doesn't own the product or product doesn't exist
+                return false; // Vendor does not own product or product not found.
             }
 
             _products.ReplaceOne(product => product.Id == id, productIn);
-            return true; // Return true on successful update
+            return true; // Update successful.
         }
 
+        // Remove a product, ensure vendor owns the product.
         public bool Remove(string id, string vendorId)
         {
             var product = Get(id);
 
-            // Check if the vendor owns the product
+            // Check if the vendor owns the product.
             if (product == null || product.VendorId != vendorId)
             {
-                return false; // Return false if vendor doesn't own the product or product doesn't exist
+                return false; // Vendor does not own product or product not found.
             }
 
             _products.DeleteOne(product => product.Id == id);
-            return true; // Return true on successful deletion
+            return true; // Deletion successful.
         }
 
+        // Activate a product, ensure vendor owns the product.
         public bool ActivateProduct(string id, string vendorId)
         {
             var product = Get(id);
 
-            // Check if the vendor owns the product
+            // Check if the vendor owns the product.
             if (product == null || product.VendorId != vendorId)
             {
-                return false; // Return false if vendor doesn't own the product or product doesn't exist
+                return false; // Vendor does not own product or product not found.
             }
 
             _products.UpdateOne(product => product.Id == id, Builders<Product>.Update.Set(p => p.IsActive, true));
-            return true; // Return true on successful activation
+            return true; // Activation successful.
         }
 
-        // Deactivate a product, ensure vendor owns the product
+        // Deactivate a product, ensure vendor owns the product.
         public bool DeactivateProduct(string id, string vendorId)
         {
             var product = Get(id);
 
-            // Check if the vendor owns the product
+            // Check if the vendor owns the product.
             if (product == null || product.VendorId != vendorId)
             {
-                return false; // Return false if vendor doesn't own the product or product doesn't exist
+                return false; // Vendor does not own product or product not found.
             }
 
             _products.UpdateOne(product => product.Id == id, Builders<Product>.Update.Set(p => p.IsActive, false));
-            return true; // Return true on successful deactivation
+            return true; // Deactivation successful.
         }
 
+        // Get products by category.
         public List<Product> GetByCategory(string category)
         {
             return _products.Find(product => product.Category == category).ToList();

@@ -1,3 +1,11 @@
+// -----------------------------------------------------------------------------
+// AuthController.cs
+// 
+// This controller handles user authentication and profile management. It 
+// provides endpoints for user signup, login, profile retrieval, and updates. 
+// JWT tokens are generated for login and used to authorize profile updates.
+// -----------------------------------------------------------------------------
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc; 
 using Microsoft.IdentityModel.Tokens;
@@ -16,16 +24,17 @@ namespace E_commerce_system.Controllers
         private readonly UserService _userService;
         private readonly IConfiguration _configuration;
 
+        // Constructor to initialize user service and configuration.
         public AuthController(UserService userService, IConfiguration configuration)
         {
             _userService = userService;
             _configuration = configuration;
         }
 
+        // Get user profile by user ID from JWT token.
         [HttpGet("profile")]
         public async Task<IActionResult> GetUserProfile()
         {
-            // Extract the user ID from the JWT token
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
             if (string.IsNullOrEmpty(userId))
@@ -33,7 +42,6 @@ namespace E_commerce_system.Controllers
                 return Unauthorized(new { message = "User ID not found in token." });
             }
 
-            // Retrieve the user by their ID
             var user = await _userService.GetUserByIdAsync(userId);
             if (user == null)
             {
@@ -43,7 +51,32 @@ namespace E_commerce_system.Controllers
             return Ok(user);
         }
 
-        // New endpoint to get all users (Only for Administrators)
+        // Get all users.
+        [HttpGet]
+        public async Task<IActionResult> GetUsers()
+        {
+            try
+            {
+                Console.WriteLine("Fetching all users...");
+
+                var users = await _userService.GetAllUsersAsync();
+                if (users.Count == 0)
+                {
+                    Console.WriteLine("No users found.");
+                    return NotFound(new { message = "No users found." });
+                }
+
+                Console.WriteLine($"Found {users.Count} users.");
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching users: {ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while fetching users.", error = ex.Message });
+            }
+        }
+
+        // Get all customers.
         [HttpGet("users")] 
         public async Task<IActionResult> GetAllUsers()
         {
@@ -69,21 +102,18 @@ namespace E_commerce_system.Controllers
             }
         }
 
+        // Register a new user (or vendor).
         [HttpPost("signup")]
         public async Task<IActionResult> Signup([FromBody] User user)
         {
             try
             {
-                // Check if the user already exists
                 if (await _userService.GetUserByEmailAsync(user.Email) != null)
                 {
                     return BadRequest(new { message = "User already exists." });
                 }
-
-                // Hash the user's password before saving
                 user.PasswordHash = _userService.HashPassword(user.PasswordHash);
 
-                // Log the hashed password for debugging
                 Console.WriteLine($"Hashed password for {user.Email}: {user.PasswordHash}");
 
                 if (user.Role == "Vendor")
@@ -113,11 +143,12 @@ namespace E_commerce_system.Controllers
             }
         }
 
+        // Update user profile.
         [HttpPut("profile")]
-        [Authorize] // Only authorized users can update their profile
+        [Authorize]
         public async Task<IActionResult> UpdateUserProfile([FromBody] UpdateUserProfileDto updatedProfile)
         {
-            // Extract the user ID from the JWT token
+
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             
             if (string.IsNullOrEmpty(userId))
@@ -125,7 +156,6 @@ namespace E_commerce_system.Controllers
                 return Unauthorized(new { message = "User ID not found in token." });
             }
 
-            // Update the user's profile
             var result = await _userService.UpdateUserProfileAsync(userId, updatedProfile);
             
             if (!result)
@@ -136,23 +166,21 @@ namespace E_commerce_system.Controllers
             return Ok(new { message = "Profile updated successfully." });
         }
 
-
+        // Login a user and generate JWT token.
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest)
         {
             try
             {
-                // Retrieve user by email
+               
                 var user = await _userService.GetUserByEmailAsync(loginRequest.Email);
                 if (user == null)
                 {
                     return Unauthorized(new { message = "Invalid credentials." });
                 }
 
-                // Log user details for debugging
                 Console.WriteLine($"User found: {user.Email}, Role: {user.Role}");
 
-                // Hash the input password and compare it with the stored hash
                 var hashOfInput = _userService.HashPassword(loginRequest.Password);
                 Console.WriteLine($"Hashed input password: {hashOfInput}");
                 Console.WriteLine($"Stored password hash: {user.PasswordHash}");
@@ -177,6 +205,7 @@ namespace E_commerce_system.Controllers
             }
         }
 
+        // Activate a user account.
         [HttpPut("users/{id}/activate")]
         public async Task<IActionResult> ActivateUser(string id)
         {
@@ -188,6 +217,8 @@ namespace E_commerce_system.Controllers
             return Ok(new { message = "User activated successfully." });
         }
 
+
+        // Deactivate a user account.
         [HttpPut("users/{id}/deactivate")]
         public async Task<IActionResult> DeactivateUser(string id)
         {
@@ -199,25 +230,25 @@ namespace E_commerce_system.Controllers
             return Ok(new { message = "User deactivated successfully." });
         }
 
+    
 
-
-
+    // Generate JWT token for the user.
     private string GenerateJwtToken(User user)
     {
-    var jwtKey = "this_is_a_very_strong_and_secure_key_for_jwt_auth";  // Use only the key
+    var jwtKey = "this_is_a_very_strong_and_secure_key_for_jwt_auth";  
 
     var claims = new[]
     {
-        new Claim(ClaimTypes.NameIdentifier, user.Id), // Use NameIdentifier for User ID (matches validation)
-        new Claim(JwtRegisteredClaimNames.Email, user.Email), // User Email
-        new Claim(ClaimTypes.Role, user.Role) // User Role
+        new Claim(ClaimTypes.NameIdentifier, user.Id), 
+        new Claim(JwtRegisteredClaimNames.Email, user.Email),
+        new Claim(ClaimTypes.Role, user.Role) 
     };
 
     var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
     var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
     var token = new JwtSecurityToken(
-        claims: claims, // No issuer and audience
+        claims: claims, 
         expires: DateTime.Now.AddMinutes(30),
         signingCredentials: creds
     );

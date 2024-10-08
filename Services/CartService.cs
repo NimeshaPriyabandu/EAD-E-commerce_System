@@ -1,3 +1,10 @@
+// -----------------------------------------------------------------------------
+// CartService.cs
+// 
+// Provides services for cart management, including adding, updating, 
+// and removing items in the user's cart, as well as calculating the total price.
+// -----------------------------------------------------------------------------
+
 using E_commerce_system.Models;
 using MongoDB.Driver;
 using System.Linq;
@@ -10,23 +17,24 @@ namespace E_commerce_system.Services
         private readonly IMongoCollection<Cart> _carts;
         private readonly IMongoCollection<Product> _products;
 
+        // Constructor to initialize collections.
         public CartService(IMongoDatabase database)
         {
             _carts = database.GetCollection<Cart>("Carts");
             _products = database.GetCollection<Product>("Products");
         }
 
-        // Retrieve a cart by userId
+        // Get the cart by userId.
         public async Task<Cart> GetCartByUserIdAsync(string userId)
         {
             return await _carts.Find(c => c.UserId == userId).FirstOrDefaultAsync();
         }
 
-        // Add a product to the cart
+        // Add product to cart or update quantity.
         public async Task<bool> AddToCartAsync(string userId, string productId, int quantity)
         {
             var product = await _products.Find(p => p.Id == productId).FirstOrDefaultAsync();
-            if (product == null) return false; // Product not found
+            if (product == null) return false;
 
             var cart = await GetCartByUserIdAsync(userId);
             if (cart == null)
@@ -38,7 +46,7 @@ namespace E_commerce_system.Services
             var existingItem = cart.Items.FirstOrDefault(i => i.ProductId == productId);
             if (existingItem != null)
             {
-                existingItem.Quantity += quantity; // Update quantity
+                existingItem.Quantity += quantity;
             }
             else
             {
@@ -51,24 +59,24 @@ namespace E_commerce_system.Services
                 });
             }
 
-            cart.TotalPrice = cart.Items.Sum(i => i.Price * i.Quantity); // Recalculate total price
-            await _carts.ReplaceOneAsync(c => c.Id == cart.Id, cart); // Save changes
+            cart.TotalPrice = cart.Items.Sum(i => i.Price * i.Quantity);
+            await _carts.ReplaceOneAsync(c => c.Id == cart.Id, cart);
             return true;
         }
 
-        // Remove a product from the cart
+        // Remove product from cart.
         public async Task<bool> RemoveFromCartAsync(string userId, string productId)
         {
             var cart = await GetCartByUserIdAsync(userId);
             if (cart == null) return false;
 
             cart.Items.RemoveAll(i => i.ProductId == productId);
-            cart.TotalPrice = cart.Items.Sum(i => i.Price * i.Quantity); // Recalculate total price
+            cart.TotalPrice = cart.Items.Sum(i => i.Price * i.Quantity);
             await _carts.ReplaceOneAsync(c => c.Id == cart.Id, cart);
             return true;
         }
 
-        // Update product quantity in the cart
+        // Update quantity of an item in the cart.
         public async Task<bool> UpdateCartItemQuantityAsync(string userId, string productId, int quantity)
         {
             var cart = await GetCartByUserIdAsync(userId);
@@ -78,12 +86,12 @@ namespace E_commerce_system.Services
             if (item == null) return false;
 
             item.Quantity = quantity;
-            cart.TotalPrice = cart.Items.Sum(i => i.Price * i.Quantity); // Recalculate total price
+            cart.TotalPrice = cart.Items.Sum(i => i.Price * i.Quantity);
             await _carts.ReplaceOneAsync(c => c.Id == cart.Id, cart);
             return true;
         }
 
-        // Clear the entire cart
+        // Clear all items in the cart.
         public async Task<bool> ClearCartAsync(string userId)
         {
             var cart = await GetCartByUserIdAsync(userId);
