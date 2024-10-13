@@ -74,6 +74,8 @@ namespace E_commerce_system.Controllers
                 {
                     return BadRequest(new { message = $"Unable to reserve stock for product {orderItem.ProductId}. Please try again later." });
                 }
+
+                _inventoryService.CheckReorderLevel(orderItem.ProductId, orderItem.VendorId);
             }
 
             var message = _orderService.Create(order);

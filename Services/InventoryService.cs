@@ -12,19 +12,22 @@ using E_commerce_system.Models;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using System.Collections.Generic;
+using E_commerce_system.Services;
 
 namespace E_commerce_system.Services
 {
     public class InventoryService
     {
         private readonly IMongoCollection<Inventory> _inventory;
+        private readonly ProductService _productService;
 
         // Constructor to initialize MongoDB connection and collection.
-        public InventoryService(IOptions<MongoDBSettings> mongoDBSettings)
+        public InventoryService(IOptions<MongoDBSettings> mongoDBSettings,ProductService productService)
         {
             var client = new MongoClient(mongoDBSettings.Value.ConnectionString);
             var database = client.GetDatabase(mongoDBSettings.Value.DatabaseName);
             _inventory = database.GetCollection<Inventory>("Inventory");
+            _productService = productService;
         }
 
         // Get stock items for a specific vendor.
@@ -96,12 +99,15 @@ namespace E_commerce_system.Services
         // Release reserved stock back to available stock.
         public void ReleaseStock(string productId, string vendorId, int quantity)
         {
+            // Find the inventory record for the specific product and vendor.
             var inventory = _inventory.Find(i => i.ProductId == productId && i.VendorId == vendorId).FirstOrDefault();
+            
             if (inventory != null && inventory.ReservedQuantity >= quantity)
             {
-                // Release stock back to available quantity.
-                inventory.AvailableQuantity += quantity;
+                // Decrease the reserved quantity as the stock has been delivered.
                 inventory.ReservedQuantity -= quantity;
+
+                // Update the inventory record in the database.
                 _inventory.ReplaceOne(i => i.Id == inventory.Id, inventory);
             }
         }
@@ -109,12 +115,16 @@ namespace E_commerce_system.Services
         // Check if inventory is below reorder level and generate notifications.
         public void CheckReorderLevel(string productId, string vendorId)
         {
+            // Get the product details
+            var product = _productService.Get(productId);
+            string productName = product != null ? product.Name : "Unknown Product";
+
             var inventory = _inventory.Find(i => i.ProductId == productId && i.VendorId == vendorId).FirstOrDefault();
             
             if (inventory != null && inventory.AvailableQuantity <= inventory.ReorderLevel)
             {
-                // Create low stock alert notification.
-                string notification = $"Low stock alert: Only {inventory.AvailableQuantity} units left in stock for Product {productId}.";
+                // Create low stock alert notification with product name
+                string notification = $"Low stock alert: Only {inventory.AvailableQuantity} units left in stock for Product '{productName}'.";
 
                 if (!inventory.Notifications.Contains(notification))
                 {

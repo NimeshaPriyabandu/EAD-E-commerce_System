@@ -23,7 +23,7 @@ namespace E_commerce_system.Models
         public string VendorId { get; set; } = string.Empty;   // Vendor ID
         public int AvailableQuantity { get; set; }             // Available quantity of product
         public int ReservedQuantity { get; set; } = 0;         // Reserved quantity of product
-        public int ReorderLevel { get; set; }                  // Reorder level for the product
+        public int ReorderLevel { get; set; }                  
         public List<string> Notifications { get; set; } = new List<string>(); // Notifications list
     }
 }

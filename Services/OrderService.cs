@@ -143,10 +143,17 @@ namespace E_commerce_system.Services
             return _orders.Find(order => order.Status == "Cancellation Requested").ToList();
         }
 
-        // Get orders by vendor ID.
-        public List<Order> GetOrdersByVendorId(string vendorId)
+       public List<Order> GetOrdersByVendorId(string vendorId)
         {
-            return _orders.Find(order => order.Items.Any(item => item.VendorId == vendorId)).ToList();
+            var orders = _orders.Find(order => order.Items.Any(item => item.VendorId == vendorId)).ToList();
+            
+            // Filter each order to include only the items for the given vendorId
+            foreach (var order in orders)
+            {
+                order.Items = order.Items.Where(item => item.VendorId == vendorId).ToList();
+            }
+
+            return orders;
         }
 
         // Get items related to a specific vendor.
@@ -186,6 +193,7 @@ namespace E_commerce_system.Services
 
             order.UpdatedAt = DateTime.UtcNow;
             _orders.ReplaceOne(o => o.Id == order.Id, order);
+            _inventoryService.ReleaseStock(productId, vendorId, orderItem.Quantity);
             return $"Order item for product {productId} marked as delivered by vendor {vendorId}.";
         }
     }
