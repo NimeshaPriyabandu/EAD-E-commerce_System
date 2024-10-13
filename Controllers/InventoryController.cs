@@ -106,5 +106,18 @@ namespace E_commerce_system.Controllers
 
             return Ok(new { message = "Stock records retrieved successfully.", vendorStocks });
         }
+
+        [HttpGet("all")]
+        public IActionResult GetAllInventory()
+        {
+            var allInventory = _inventoryService.GetAllInventory();
+
+            if (allInventory.Count == 0)
+            {
+                return NotFound(new { message = "No inventory records found." });
+            }
+
+            return Ok(new { message = "All inventory records retrieved successfully.", allInventory });
+        }
     }
 }

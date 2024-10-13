@@ -102,25 +102,43 @@ namespace E_commerce_system.Controllers
             }
         }
 
-        // Register a new user (or vendor).
         [HttpPost("signup")]
         public async Task<IActionResult> Signup([FromBody] User user)
         {
             try
             {
-                if (await _userService.GetUserByEmailAsync(user.Email) != null)
+                // Validate input fields
+                if (string.IsNullOrEmpty(user.Email) || string.IsNullOrEmpty(user.PasswordHash) || string.IsNullOrEmpty(user.Role))
+                {
+                    return BadRequest(new { message = "Email, password, and role are required." });
+                }
+
+                // Check if the email format is valid (basic validation)
+                if (!IsValidEmail(user.Email))
+                {
+                    return BadRequest(new { message = "Invalid email format." });
+                }
+
+                // Check if the user already exists
+                var existingUser = await _userService.GetUserByEmailAsync(user.Email);
+                if (existingUser != null)
                 {
                     return BadRequest(new { message = "User already exists." });
                 }
+
+                // Hash the password
                 user.PasswordHash = _userService.HashPassword(user.PasswordHash);
 
                 Console.WriteLine($"Hashed password for {user.Email}: {user.PasswordHash}");
 
                 if (user.Role == "Vendor")
                 {
+                    // Create a new Vendor
                     var vendor = new Vendor
                     {
                         Email = user.Email,
+                        Name=user.Name,
+                        PhoneNumber=user.PhoneNumber,
                         PasswordHash = user.PasswordHash,
                         Role = "Vendor",
                         IsActive = true,
@@ -133,13 +151,32 @@ namespace E_commerce_system.Controllers
                 }
                 else
                 {
+                    // Create a regular user
                     await _userService.CreateUserAsync(user);
                     return Ok(new { message = "User created successfully." });
                 }
             }
             catch (Exception ex)
             {
+                // Log the error (optional)
+                Console.WriteLine($"Error occurred during signup: {ex.Message}");
+
+                // Return internal server error with the exception message
                 return StatusCode(500, new { message = "An error occurred while creating the user.", error = ex.Message });
+            }
+        }
+
+        // Helper method to validate email format
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -172,38 +209,50 @@ namespace E_commerce_system.Controllers
         {
             try
             {
-               
+                // Check if the user exists by email
                 var user = await _userService.GetUserByEmailAsync(loginRequest.Email);
                 if (user == null)
                 {
-                    return Unauthorized(new { message = "Invalid credentials." });
+                    // Email does not exist
+                    return BadRequest(new { message = "User with the given email does not exist. Please contact the administrator." });
                 }
 
+                // Log the found user details
                 Console.WriteLine($"User found: {user.Email}, Role: {user.Role}");
 
+                // Hash the input password
                 var hashOfInput = _userService.HashPassword(loginRequest.Password);
                 Console.WriteLine($"Hashed input password: {hashOfInput}");
                 Console.WriteLine($"Stored password hash: {user.PasswordHash}");
 
+                // Check if the hashed input matches the stored password hash
                 if (hashOfInput != user.PasswordHash)
                 {
+                    // Incorrect password
                     Console.WriteLine("Invalid password for user: " + user.Email);
-                    return Unauthorized(new { message = "Invalid credentials." });
+                    return BadRequest(new { message = "Incorrect password. Please try again." });
                 }
 
+                // Check if the user account is inactive
                 if (!user.IsActive)
                 {
-                    return Forbid("Account is not activated.");
+                    // Account is inactive
+                    return BadRequest(new { message = "Your account is inactive. Please contact the administrator." });
                 }
 
+                // Generate JWT token if all checks pass
                 var token = GenerateJwtToken(user);
+
+                // Return token if login is successful
                 return Ok(new { Token = token });
             }
             catch (Exception ex)
             {
+                // Return a generic error message for any unexpected errors
                 return StatusCode(500, new { message = "An error occurred while processing the login request.", error = ex.Message });
             }
         }
+
 
         // Activate a user account.
         [HttpPut("users/{id}/activate")]
@@ -228,6 +277,24 @@ namespace E_commerce_system.Controllers
                 return NotFound(new { message = "User not found." });
             }
             return Ok(new { message = "User deactivated successfully." });
+        }
+
+        [HttpPut("admin/update-profile/{userId}")]
+        public async Task<IActionResult> AdminUpdateUserProfile(string userId, [FromBody] UpdateUserProfileDto updatedProfile)
+        {
+            if (string.IsNullOrEmpty(userId))
+            {
+                return BadRequest(new { message = "User ID is required." });
+            }
+
+            var result = await _userService.UpdateUserProfileAsync(userId, updatedProfile);
+            
+            if (!result)
+            {
+                return NotFound(new { message = "User not found or update failed." });
+            }
+
+            return Ok(new { message = "User profile updated successfully." });
         }
 
     

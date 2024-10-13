@@ -129,6 +129,24 @@ namespace E_commerce_system.Services
             await UpdateUserAsync(user);
             return true; 
         }
+
+        public async Task<bool> AdminUpdateUserProfileAsync(string userId, UpdateUserProfileDto updatedProfile)
+        {
+            var user = await GetUserByIdAsync(userId);
+            if (user == null)
+            {
+                return false; 
+            }
+
+            // Update fields only if new values are provided.
+            user.Name = updatedProfile.Name ?? user.Name;
+            user.PhoneNumber = updatedProfile.PhoneNumber ?? user.PhoneNumber;
+
+            await UpdateUserAsync(user);
+            return true;
+        }
+
+        
     }
 
     // DTO for updating user profile.

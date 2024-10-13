@@ -34,6 +34,11 @@ namespace E_commerce_system.Services
             return vendorStocks;
         }
 
+        public List<Inventory> GetAllInventory()
+        {
+            return _inventory.Find(i => true).ToList(); // Get all inventory records.
+        }
+
         // Check if stock is available for a product and vendor.
         public bool CheckStock(string productId, string vendorId, int quantity)
         {
